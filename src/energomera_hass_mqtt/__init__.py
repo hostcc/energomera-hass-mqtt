@@ -30,7 +30,7 @@ from iec62056_21.client import Iec6205621Client
 from iec62056_21 import utils
 from asyncio_mqtt import Client as mqtt_client
 
-
+# pylint: disable=too-many-instance-attributes
 class EnergomeraHassMqtt:
     """
     Communicates with Energomera energy meters using IEC 62056-21 (supersedes
@@ -67,6 +67,7 @@ class EnergomeraHassMqtt:
         bcc = bcc & 0x7F
         return bcc.to_bytes(length=1, byteorder='big')
 
+    # pylint: disable=too-many-arguments
     def __init__(
         self, port, password,
         mqtt_host, mqtt_user, mqtt_password, mqtt_tls_context=None,
@@ -143,6 +144,7 @@ class EnergomeraHassMqtt:
 
         return self._client.read_response().data
 
+    # pylint: disable=too-many-locals
     async def iec_to_hass_payload(
         self, address, name, device_class, state_class, unit, response_idx=None
     ):
