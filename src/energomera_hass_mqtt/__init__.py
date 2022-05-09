@@ -99,31 +99,26 @@ class EnergomeraHassMqtt:
                  state_class='total', unit='kWh', response_idx=0),
             dict(address='ECDPE', name='Daily energy', device_class='energy',
                  state_class='total', unit='kWh', response_idx=0),
-            dict(address='POWPP',
-                 name=[
-                      'Active energy, phase A',
-                      'Active energy, phase B',
-                      'Active energy, phase C'
-                 ],
+            dict(address='POWPP', name=[
+                 'Active energy, phase A',
+                 'Active energy, phase B',
+                 'Active energy, phase C'],
                  device_class='power',
                  state_class='measurement', unit='kW'),
             dict(address='POWEP', name='Active energy', device_class='power',
                  state_class='measurement', unit='kW'),
             dict(address='VOLTA', name=[
-                  'Voltage, phase A',
-                  'Voltage, phase B',
-                  'Voltage, phase C'
-                 ],
+                 'Voltage, phase A',
+                 'Voltage, phase B',
+                 'Voltage, phase C'],
                  device_class='voltage', state_class='measurement',
                  unit='V'),
             dict(address='VNULL', name='Neutral voltage',
                  device_class='voltage', state_class='measurement', unit='V'),
-            dict(address='CURRE',
-                 name=[
-                      'Current, phase A',
-                      'Current, phase B',
-                      'Current, phase C'
-                 ],
+            dict(address='CURRE', name=[
+                 'Current, phase A',
+                 'Current, phase B',
+                 'Current, phase C'],
                  device_class='current',
                  state_class='measurement', unit='A'),
             dict(address='FREQU', name='Frequency', device_class='frequency',
