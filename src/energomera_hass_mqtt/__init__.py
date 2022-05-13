@@ -24,6 +24,7 @@ HomeAssistant using MQTT.
 """
 
 import json
+from datetime import (date, timedelta)
 
 from iec62056_21.messages import CommandMessage
 from iec62056_21.client import Iec6205621Client
@@ -99,6 +100,12 @@ class EnergomeraHassMqtt:
                  unit='kWh', response_idx=0),
             dict(address='ECMPE', name='Monthly energy', device_class='energy',
                  state_class='total', unit='kWh', response_idx=0),
+            dict(address='ECMPE', name='Previous month energy',
+                 device_class='energy',
+                 state_class='total', unit='kWh', response_idx=0,
+                 additional_data=(
+                     date.today().replace(day=1) - timedelta(days=1)
+                 ).strftime('%m.%Y')),
             dict(address='ECDPE', name='Daily energy', device_class='energy',
                  state_class='total', unit='kWh', response_idx=0),
             dict(address='POWPP', name=[
@@ -147,7 +154,8 @@ class EnergomeraHassMqtt:
 
     # pylint: disable=too-many-locals
     async def iec_to_hass_payload(
-        self, address, name, device_class, state_class, unit, response_idx=None
+        self, address, name, device_class, state_class, unit,
+        response_idx=None, additional_data=None,
     ):
         """
         Reads selected parameters using IEC 62056-21 protocol from the meter
@@ -163,7 +171,7 @@ class EnergomeraHassMqtt:
         :param response_idx: Whether to pick specific entry from multi-value
          parameter, zero-based
         """
-        resp = self.iec_read_values(address)
+        resp = self.iec_read_values(address, additional_data)
         if response_idx is not None:
             resp = [resp[response_idx]]
 
@@ -276,6 +284,7 @@ class EnergomeraHassMqtt:
                 state_class=param['state_class'],
                 unit=param['unit'],
                 response_idx=param.get('response_idx', None),
+                additional_data=param.get('additional_data', None),
             )
         # End the session
         self._client.send_break()
