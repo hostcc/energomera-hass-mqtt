@@ -26,9 +26,9 @@ import ssl
 from . import EnergomeraHassMqtt
 
 
-async def main():
+async def async_main():
     """
-    Main entry point for the CLI.
+    Primary async entry point.
     """
     tls_context = ssl.SSLContext()
     client = EnergomeraHassMqtt(
@@ -45,5 +45,13 @@ async def main():
                   f' Details: {repr(exc)}')
         await asyncio.sleep(30)
 
+
+def main():
+    """
+    Main entry point for the CLI.
+    """
+    asyncio.run(async_main())
+
+
 if __name__ == '__main__':
-    asyncio.run(main())
+    main()
