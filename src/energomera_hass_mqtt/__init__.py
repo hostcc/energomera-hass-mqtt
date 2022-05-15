@@ -100,12 +100,18 @@ class EnergomeraHassMqtt:
                  unit='kWh', response_idx=0),
             dict(address='ECMPE', name='Monthly energy', device_class='energy',
                  state_class='total', unit='kWh', response_idx=0),
-            dict(address='ECMPE', name='Previous month energy',
+            dict(address='ENMPE', name='Cumulative energy, previous month',
+                 device_class='energy',
+                 state_class='total_increasing', unit='kWh', response_idx=0,
+                 additional_data=(
+                     date.today().replace(day=1) - timedelta(days=1)
+                 ).strftime('%m.%y'), entity_name='ENMPE_PREV_MONTH'),
+            dict(address='EAMPE', name='Previous month energy',
                  device_class='energy',
                  state_class='total', unit='kWh', response_idx=0,
                  additional_data=(
                      date.today().replace(day=1) - timedelta(days=1)
-                 ).strftime('%m.%Y')),
+                 ).strftime('%m.%y'), entity_name='ECMPE_PREV_MONTH'),
             dict(address='ECDPE', name='Daily energy', device_class='energy',
                  state_class='total', unit='kWh', response_idx=0),
             dict(address='POWPP', name=[
@@ -156,6 +162,7 @@ class EnergomeraHassMqtt:
     async def iec_to_hass_payload(
         self, address, name, device_class, state_class, unit,
         response_idx=None, additional_data=None,
+        entity_name=None,
     ):
         """
         Reads selected parameters using IEC 62056-21 protocol from the meter
@@ -183,7 +190,7 @@ class EnergomeraHassMqtt:
         for idx, item in enumerate(resp):
             item_name = name
             hass_device_id = f'{self._model}_{self._serial_number}'
-            hass_unique_id = f'{hass_device_id}_{item.address}'
+            hass_unique_id = f'{hass_device_id}_{entity_name or item.address}'
 
             # Multiple addresses with likely same name, the caller has to
             # provide meaningful names for those anyways even if they are
@@ -285,6 +292,7 @@ class EnergomeraHassMqtt:
                 unit=param['unit'],
                 response_idx=param.get('response_idx', None),
                 additional_data=param.get('additional_data', None),
+                entity_name=param.get('entity_name', None),
             )
         # End the session
         self._client.send_break()
