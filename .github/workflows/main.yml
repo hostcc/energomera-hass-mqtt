@@ -45,8 +45,6 @@ jobs:
           python -m pip install --upgrade setuptools pip tox virtualenv coverage
       - name: Run the tests
         run: tox -e ${{ matrix.toxenv }}
-      - name: Combine Coverage reports
-        run: coverage combine
       - name: Generage Coverage combined XML report
         run: coverage xml
       - name: Determine package version
@@ -70,6 +68,9 @@ jobs:
   pypi-publish:
     name: Publish to PyPi
     runs-on: ubuntu-latest
+    # PyPi disallows to publish packages with direct dependencies (GitHub
+    # sourced dependency in this case), so disable publishing for now
+    if: false
     needs: [tests]
     steps:
       - name: Checkout the code
