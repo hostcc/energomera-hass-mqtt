@@ -697,7 +697,7 @@ def generate_serial_tests(call_args):
     for (exp, arg) in zip([x['receive_bytes'] for x in serial_exchange],
                           call_args):
         values.append((arg, call(exp)))
-        ids.append(exp)
+        ids.append(str(exp))
 
     return {'argvalues': values, 'ids': ids}
 
