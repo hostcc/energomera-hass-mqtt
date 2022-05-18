@@ -87,10 +87,12 @@ class EnergomeraHassMqtt:
         self._model = None
         self._serial_number = None
         self._sw_version = None
-        self._mqtt_host = mqtt_host
-        self._mqtt_user = mqtt_user
-        self._mqtt_password = mqtt_password
-        self._mqtt_tls_context = mqtt_tls_context
+        self._mqtt_client = mqtt_client(
+            hostname=mqtt_host,
+            username=mqtt_user, password=mqtt_password,
+            tls_context=mqtt_tls_context
+        )
+
         self._hass_config_entities_published = {}
         # Parameters to read from the meter, and their representation to
         # HomeAssistant
@@ -240,11 +242,7 @@ class EnergomeraHassMqtt:
             json_state_payload = json.dumps(state_payload)
 
             # Send payloads using MQTT
-            async with mqtt_client(
-                hostname=self._mqtt_host,
-                username=self._mqtt_user, password=self._mqtt_password,
-                tls_context=self._mqtt_tls_context,
-            ) as client:
+            async with self._mqtt_client as client:
                 # Send config payload for HomeAssitant discovery only once per
                 # sensor
                 if (hass_unique_id not in
