@@ -22,7 +22,13 @@
 Tests for 'energomera_hass_mqtt' package
 '''
 import json
-from unittest.mock import call, MagicMock, AsyncMock
+from unittest.mock import call, MagicMock
+try:
+    from unittest.mock import AsyncMock
+except AttributeError:
+    # AsyncMock introduced in Python 3.8, import from alternative package if
+    # older
+    from mock import AsyncMock
 import asyncio
 from functools import reduce
 import pytest
