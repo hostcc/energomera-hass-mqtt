@@ -25,7 +25,7 @@ import json
 from unittest.mock import call, MagicMock
 try:
     from unittest.mock import AsyncMock
-except AttributeError:
+except ImportError:
     # AsyncMock introduced in Python 3.8, import from alternative package if
     # older
     from mock import AsyncMock
