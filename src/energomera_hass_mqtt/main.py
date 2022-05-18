@@ -50,7 +50,11 @@ def main():
     """
     Main entry point for the CLI.
     """
-    asyncio.run(async_main())
+    try:
+        asyncio.run(async_main())
+    except AttributeError:
+        # Python 3.6 has no `asyncio.run()`, emulate it
+        asyncio.get_event_loop().run_until_complete(async_main())
 
 
 if __name__ == '__main__':
