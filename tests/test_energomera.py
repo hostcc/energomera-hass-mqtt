@@ -654,8 +654,19 @@ async def client_main():
     # Resulting calls sending data over serial and doing MQTT publishes
     return publish_mock.call_args_list, send_mock.call_args_list
 
-# Run the main flow synchronously and capture calls we interested in
-(mqtt_publish_call_args, serial_send_call_args) = asyncio.run(client_main())
+
+def run_main():
+    '''
+    Runs the main flow synchronously and capture calls we interested in.
+    '''
+    try:
+        return asyncio.run(client_main())
+    except AttributeError:
+        # Python 3.6 has no `asyncio.run()`, emulate it
+        return asyncio.get_event_loop().run_until_complete(client_main())
+
+
+(mqtt_publish_call_args, serial_send_call_args) = run_main()
 
 
 def generate_mqtt_tests(call_args):
