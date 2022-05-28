@@ -39,13 +39,17 @@ class EnergomeraConfigError(Exception):
 class EnergomeraConfig:
     """
     Class representing configuration for `EnergomeraHassMqtt` one.
+
+    :param str config_file: Name of configuration file
+    :param str content: Literal content representing the configuration
     """
     @staticmethod
     def _energomera_prev_month():
         """
         Static method to calculate previous month in meter's format.
 
-        :return str:Previous month formatted as `<month number>.<year>`
+        :return: Previous month formatted as `<month number>.<year>`
+        :rtype: str
         """
         return (
             (date.today().replace(day=1) - timedelta(days=1))
@@ -57,8 +61,9 @@ class EnergomeraConfig:
         """
         Static method to calculate previous day in meter's format.
 
-        :return str:Previous day formatted as `<day number>.<month
+        :return: Previous day formatted as `<day number>.<month
           number>.<year>`
+        :rtype: str
         """
         return (
             (date.today() - timedelta(days=1))
@@ -173,8 +178,9 @@ class EnergomeraConfig:
         """
         Returns schema for the configuration file.
 
-        :return Schema:The schema to use when validating the configuration
+        :return: The schema to use when validating the configuration
           file's contents
+        :rtype: Schema
         """
         return Schema({
             'meter': {
@@ -206,8 +212,8 @@ class EnergomeraConfig:
         """
         Initializes configuration state either from file or content string.
 
-        :param config_file str:Name of configuration file
-        :param content str:Configuration contents
+        :param str config_file: Name of configuration file
+        :param str content: Configuration contents
         """
         if not config_file and not content:
             raise EnergomeraConfigError(
@@ -240,7 +246,8 @@ class EnergomeraConfig:
         """
         Returns the configuration state
 
-        :return Dict:Cofniguration state
+        :return: Configuration state
+        :rtype: :class:`Dict`
         """
         return self._config
 
@@ -250,6 +257,7 @@ class EnergomeraConfig:
         configuration.
 
         Supported expressions:
+
         - `{{ energomera_prev_month }}`: Previous month in meter's format
         - `{{ energomera_prev_day }}`: Previous day in meter's format
         """
