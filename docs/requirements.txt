@@ -1,3 +1,6 @@
 sphinx-rtd-theme
-git+https://github.com/hostcc/iec62056-21.git@feature/transport-improvements#egg=iec62056-21
+git+https://github.com/hostcc/iec62056-21.git@feature/transport-improvements
 asyncio-mqtt
+pyyaml
+schema
+addict
