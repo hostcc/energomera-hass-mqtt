@@ -34,7 +34,7 @@ from functools import reduce
 import pytest
 import asyncio_mqtt.client
 import iec62056_21.transports
-from energomera_hass_mqtt import EnergomeraHassMqtt
+from energomera_hass_mqtt import EnergomeraHassMqtt, EnergomeraConfig
 
 # Serial exchange to simulate - `send_bytes` will be simulated as if received
 # from the device, `receive_bytes` is what expected to be sent by the package.
@@ -641,13 +641,21 @@ async def client_main():
     ]
 
     # Instantiate the client
+    config_yaml = '''
+        meter:
+          port: dummy_serial
+          password: dummy
+        mqtt:
+          host: mqtt_dummy_host
+          user: mqtt_dummy_user
+          password: mqtt_dummy_password
+    '''
+
+    config = EnergomeraConfig(content=config_yaml)
     client = EnergomeraHassMqtt(
-        port='dummy',
-        password='dummy',
-        mqtt_host='dummy_host',
-        mqtt_user='dummy_user',
-        mqtt_password='dummy_password',
+        config=config,
     )
+    config.interpolate()
 
     # Perform communication with the device and issue MQTT calls
     await client.iec_read_admin()
