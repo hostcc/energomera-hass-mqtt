@@ -24,12 +24,15 @@ HomeAssistant using MQTT.
 """
 
 import json
-from datetime import (date, timedelta)
+import logging
 
 from iec62056_21.messages import CommandMessage
 from iec62056_21.client import Iec6205621Client
 from iec62056_21 import utils
 from asyncio_mqtt import Client as mqtt_client
+from .config import EnergomeraConfig, EnergomeraConfigError  # noqa:F401
+
+_LOGGER = logging.getLogger(__name__)
 
 
 # pylint: disable=too-many-instance-attributes
@@ -71,76 +74,27 @@ class EnergomeraHassMqtt:
 
     # pylint: disable=too-many-arguments
     def __init__(
-        self, port, password,
-        mqtt_host, mqtt_user, mqtt_password, mqtt_tls_context=None,
-        hass_discovery_prefix='homeassistant'
+        self, config,
+        mqtt_tls_context=None,
     ):
+        self._config = config
         # Override the method in the `iec62056_21` library with the specific
         # implementation
         # pylint: disable=protected-access
         utils._calculate_bcc = EnergomeraHassMqtt.calculate_bcc
 
         self._client = Iec6205621Client.with_serial_transport(
-            port=port, password=password
+            port=config.of.meter.port, password=config.of.meter.password
         )
-        self._hass_discovery_prefix = hass_discovery_prefix
+        self._hass_discovery_prefix = config.of.mqtt.hass_discovery_prefix
         self._model = None
         self._serial_number = None
         self._sw_version = None
         self._mqtt_client = mqtt_client(
-            hostname=mqtt_host,
-            username=mqtt_user, password=mqtt_password,
-            tls_context=mqtt_tls_context
+            hostname=config.of.mqtt.host, username=config.of.mqtt.user,
+            password=config.of.mqtt.password, tls_context=mqtt_tls_context
         )
-
         self._hass_config_entities_published = {}
-        # Parameters to read from the meter, and their representation to
-        # HomeAssistant
-        self._parameters = [
-            dict(address='ET0PE', name='Cumulative energy',
-                 device_class='energy', state_class='total_increasing',
-                 unit='kWh', response_idx=0),
-            dict(address='ECMPE', name='Monthly energy', device_class='energy',
-                 state_class='total', unit='kWh', response_idx=0),
-            dict(address='ENMPE', name='Cumulative energy, previous month',
-                 device_class='energy',
-                 state_class='total_increasing', unit='kWh', response_idx=0,
-                 additional_data=(
-                     date.today().replace(day=1) - timedelta(days=1)
-                 ).strftime('%m.%y'), entity_name='ENMPE_PREV_MONTH'),
-            dict(address='EAMPE', name='Previous month energy',
-                 device_class='energy',
-                 state_class='total', unit='kWh', response_idx=0,
-                 additional_data=(
-                     date.today().replace(day=1) - timedelta(days=1)
-                 ).strftime('%m.%y'), entity_name='ECMPE_PREV_MONTH'),
-            dict(address='ECDPE', name='Daily energy', device_class='energy',
-                 state_class='total', unit='kWh', response_idx=0),
-            dict(address='POWPP', name=[
-                 'Active energy, phase A',
-                 'Active energy, phase B',
-                 'Active energy, phase C'],
-                 device_class='power',
-                 state_class='measurement', unit='kW'),
-            dict(address='POWEP', name='Active energy', device_class='power',
-                 state_class='measurement', unit='kW'),
-            dict(address='VOLTA', name=[
-                 'Voltage, phase A',
-                 'Voltage, phase B',
-                 'Voltage, phase C'],
-                 device_class='voltage', state_class='measurement',
-                 unit='V'),
-            dict(address='VNULL', name='Neutral voltage',
-                 device_class='voltage', state_class='measurement', unit='V'),
-            dict(address='CURRE', name=[
-                 'Current, phase A',
-                 'Current, phase B',
-                 'Current, phase C'],
-                 device_class='current',
-                 state_class='measurement', unit='A'),
-            dict(address='FREQU', name='Frequency', device_class='frequency',
-                 state_class='measurement', unit='Hz'),
-        ]
 
     def iec_read_values(self, address, additional_data=None):
         """
@@ -180,9 +134,22 @@ class EnergomeraHassMqtt:
         :param response_idx: Whether to pick specific entry from multi-value
          parameter, zero-based
         """
+        _LOGGER.debug("Processing entry: IEC address '%s',"
+                      " additional data '%s', index in response '%s';"
+                      " HASS name '%s', entity name '%s'",
+                      address, additional_data, response_idx, name,
+                      entity_name)
+
         resp = self.iec_read_values(address, additional_data)
         if response_idx is not None:
-            resp = [resp[response_idx]]
+            try:
+                resp = [resp[response_idx]]
+            except KeyError:
+                _LOGGER.error("Response for IEC entry at '%s' doesn't"
+                              " contain element at index '%s', skipping.\n"
+                              "Response: '%s'",
+                              address, response_idx, resp)
+                return
 
         if isinstance(name, list):
             # Make a copy to retain original content, is needed because `name`
@@ -206,6 +173,10 @@ class EnergomeraHassMqtt:
                 else:
                     item_name += f'_{idx}'
 
+            _LOGGER.debug("Using '%s' as HASS name for IEC enttity"
+                          " at '%s' address",
+                          item_name, address)
+
             # Compose base element of MQTT topics
             topic_base_parts = [
                 'sensor', hass_device_id, hass_unique_id,
@@ -218,6 +189,7 @@ class EnergomeraHassMqtt:
             # https://www.home-assistant.io/docs/mqtt/discovery/ for details
             config_topic = f'{topic_base}/config'
             state_topic = f'{topic_base}/state'
+
             # Config payload for sensor discovery
             config_payload = dict(
                 name=item_name,
@@ -235,11 +207,18 @@ class EnergomeraHassMqtt:
                 value_template='{{ value_json.value }}',
             )
             json_config_payload = json.dumps(config_payload)
+            _LOGGER.debug("MQTT config payload for HASS auto-discovery:"
+                          " '%s'",
+                          json_config_payload)
+
             # Sensor state payload
             state_payload = dict(
                 value=item.value
             )
             json_state_payload = json.dumps(state_payload)
+            _LOGGER.debug("MQTT state payload for HASS auto-discovery:"
+                          " '%s'",
+                          json_state_payload)
 
             # Send payloads using MQTT
             async with self._mqtt_client as client:
@@ -253,24 +232,31 @@ class EnergomeraHassMqtt:
                         retain=True,
                     )
                     self._hass_config_entities_published[hass_unique_id] = True
+                    _LOGGER.debug("Sent HASS config payload to MQTT topic"
+                                  " '%s'",
+                                  config_topic)
 
                 # Send sensor state payload
                 await client.publish(
                     state_topic,
                     payload=json_state_payload,
                 )
+                _LOGGER.debug("Sent HASS state payload to MQTT topic '%s'",
+                              state_topic)
 
     async def iec_read_admin(self):
         """
         Primary method to loop over the parameters requested and process them.
         """
-        self._client.connect()
 
+        _LOGGER.debug('Opening connection with meter')
+        self._client.connect()
         self._client.startup()
         # Start the session in programming mode since it is faster one, as it
         # switches to baud rate higher than initial (300 baud, as per IEC
         # 62056-21, mode C). Requires password to be provided when constructing
         # the instance of the class
+        _LOGGER.debug('Entering programming mode with meter')
         self._client.ack_with_option_select("programming")
         self._client.read_response()
         self._client.send_password()
@@ -280,18 +266,22 @@ class EnergomeraHassMqtt:
         iec_hello_resp = self.iec_read_values('HELLO')[0]
         [_, self._model, self._sw_version, self._serial_number, _
          ] = iec_hello_resp.value.split(',')
+        _LOGGER.debug("Retrieved identification data from meter:"
+                      " model '%s', SW version '%s', serial number: '%s'",
+                      self._model, self._sw_version, self._serial_number)
 
         # Process parameters requested
-        for param in self._parameters:
+        for param in self._config.of.parameters:
             await self.iec_to_hass_payload(
-                address=param['address'], name=param['name'],
-                device_class=param['device_class'],
-                state_class=param['state_class'],
-                unit=param['unit'],
-                response_idx=param.get('response_idx', None),
-                additional_data=param.get('additional_data', None),
-                entity_name=param.get('entity_name', None),
+                address=param.address, name=param.name,
+                device_class=param.device_class,
+                state_class=param.state_class,
+                unit=param.unit,
+                response_idx=param.response_idx,
+                additional_data=param.additional_data,
+                entity_name=param.entity_name,
             )
         # End the session
+        _LOGGER.debug('Closing session with meter')
         self._client.send_break()
         self._client.disconnect()

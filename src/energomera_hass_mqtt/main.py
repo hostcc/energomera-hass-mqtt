@@ -23,7 +23,7 @@ CLI interface to `EnergomeraHassMqtt` class
 """
 import asyncio
 import ssl
-from . import EnergomeraHassMqtt
+from . import EnergomeraHassMqtt, EnergomeraConfig
 
 
 async def async_main():
@@ -32,8 +32,7 @@ async def async_main():
     """
     tls_context = ssl.SSLContext()
     client = EnergomeraHassMqtt(
-        port='...', password='...',
-        mqtt_host='...', mqtt_user='...', mqtt_password='...',
+        config=EnergomeraConfig('config.yaml'),
         # Required for TLS-enabled MQTT broker
         mqtt_tls_context=tls_context,
     )
