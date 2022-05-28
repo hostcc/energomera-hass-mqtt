@@ -19,7 +19,7 @@
 # SOFTWARE.
 
 '''
-tbd
+Tests for `EnergomeraConfig` class.
 '''
 
 from unittest.mock import mock_open, patch
@@ -29,7 +29,7 @@ from energomera_hass_mqtt import EnergomeraConfig, EnergomeraConfigError
 
 def test_valid_config_file():
     '''
-    tbd
+    Tests for processing of valid configuration file.
     '''
     valid_config_yaml = '''
         meter:
@@ -77,10 +77,37 @@ def test_valid_config_file():
         assert config.of == valid_config
 
 
-def test_invalid_config_file():
+def test_empty_file():
     '''
-    tbd
+    Tests for processing empty configuration file.
     '''
     with patch('builtins.open', mock_open(read_data='')):
         with pytest.raises(EnergomeraConfigError):
             EnergomeraConfig('dummy')
+
+
+def test_non_existing_file():
+    '''
+    Tests for processing non-existent configuration file.
+    '''
+    with pytest.raises(EnergomeraConfigError):
+        EnergomeraConfig(config_file='non-existent-config-file')
+
+
+def test_invalid_content():
+    '''
+    Tests for invalid configuration content.
+    '''
+    with pytest.raises(EnergomeraConfigError):
+        EnergomeraConfig(content='not-a-yaml')
+
+
+def test_config_required_params():
+    '''
+    Tests for required parameters.
+    '''
+    with pytest.raises(EnergomeraConfigError) as exc_info:
+        EnergomeraConfig()
+    assert str(exc_info.value) == (
+        "Either 'config_file' or 'content' should be provided"
+    )
