@@ -29,7 +29,6 @@ async def async_main():
     """
     Primary async entry point.
     """
-    tls_context = ssl.SSLContext()
     client = EnergomeraHassMqtt(
         config=EnergomeraConfig('config.yaml'),
     )
