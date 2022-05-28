@@ -36,8 +36,8 @@ def test_valid_config_file():
           port: dummy_serial
           password: dummy_password
         mqtt:
-          host: mqtt_dummy_host
-          user: mqtt_dummy_user
+          host: a_mqtt_host
+          user: a_mqtt_user
           password: mqtt_dummy_password
         parameters:
             - name: dummy_param
@@ -47,13 +47,17 @@ def test_valid_config_file():
               unit: dummy
     '''
     valid_config = {
+        'general': {
+            'oneshot': False,
+            'intercycle_delay': 30,
+        },
         'meter': {
             'port': 'dummy_serial',
             'password': 'dummy_password',
         },
         'mqtt': {
-            'host': 'mqtt_dummy_host',
-            'user': 'mqtt_dummy_user',
+            'host': 'a_mqtt_host',
+            'user': 'a_mqtt_user',
             'password': 'mqtt_dummy_password',
             'hass_discovery_prefix': 'homeassistant',
         },

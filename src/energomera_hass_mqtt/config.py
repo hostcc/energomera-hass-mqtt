@@ -182,7 +182,18 @@ class EnergomeraConfig:
           file's contents
         :rtype: Schema
         """
+        general_defaults = Dict(
+            oneshot=False,
+            intercycle_delay=30,
+        )
         return Schema({
+            Optional('general', default=general_defaults): Schema({
+                # Re-use defaults from `general_defaults`
+                Optional('oneshot',
+                         default=general_defaults.oneshot): bool,
+                Optional('intercycle_delay',
+                         default=general_defaults.intercycle_delay): int,
+            }),
             'meter': {
                 'port': str,
                 'password': str,
