@@ -21,36 +21,64 @@
 """
 CLI interface to `EnergomeraHassMqtt` class
 """
+import sys
+import argparse
 import asyncio
 from . import EnergomeraHassMqtt, EnergomeraConfig
 
 
-async def async_main():
+def process_cmdline(argv):
+    """
+    Processes command line parameters.
+
+    :param list argv: Command line parameters
+    :return: Processed parameters
+    :rtype: argparse.Namespace
+    """
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-c', '--config-file',
+        default='config.yaml',
+        help="Path to configuration file (default: '%(default)s')"
+    )
+    return parser.parse_args(argv)
+
+
+async def async_main(argv):
     """
     Primary async entry point.
+
+    :param list argv: Command line parameters
     """
-    client = EnergomeraHassMqtt(
-        config=EnergomeraConfig('config.yaml'),
-    )
+    args = process_cmdline(argv)
+
+    config = EnergomeraConfig(args.config_file)
+    client = EnergomeraHassMqtt(config)
     while True:
+        config.interpolate()
         try:
             await client.iec_read_admin()
         except Exception as exc:  # pylint: disable=broad-except
             print('Got exception while processing, skipping to next cycle.'
                   f' Details: {repr(exc)}')
-        await asyncio.sleep(30)
+        if config.of.general.oneshot:
+            break
+        await asyncio.sleep(config.of.general.intercycle_delay)
 
 
-def main():
+def main(argv):
     """
     Main entry point for the CLI.
+
+    :param list argv: Command line parameters, typically `sys.argv`
     """
     try:
-        asyncio.run(async_main())
+        asyncio.run(async_main(argv))
     except AttributeError:
         # Python 3.6 has no `asyncio.run()`, emulate it
-        asyncio.get_event_loop().run_until_complete(async_main())
+        asyncio.get_event_loop().run_until_complete(async_main(argv))
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv)

@@ -22,19 +22,18 @@
 Tests for 'energomera_hass_mqtt' package
 '''
 import json
-from unittest.mock import call, MagicMock
+from unittest.mock import call, MagicMock, patch, mock_open
 try:
     from unittest.mock import AsyncMock
 except ImportError:
     # AsyncMock introduced in Python 3.8, import from alternative package if
     # older
     from mock import AsyncMock
-import asyncio
 from functools import reduce
 import pytest
 import asyncio_mqtt.client
 import iec62056_21.transports
-from energomera_hass_mqtt import EnergomeraHassMqtt, EnergomeraConfig
+from energomera_hass_mqtt import main
 
 # Serial exchange to simulate - `send_bytes` will be simulated as if received
 # from the device, `receive_bytes` is what expected to be sent by the package.
@@ -715,7 +714,7 @@ mqtt_publish_calls = [
 ]
 
 
-async def client_main():
+def run_main():
     '''
     Execute the main flow interacting with the device and MQTT.
     '''
@@ -747,6 +746,8 @@ async def client_main():
 
     # Instantiate the client
     config_yaml = '''
+        general:
+            oneshot: true
         meter:
           port: dummy_serial
           password: dummy
@@ -842,27 +843,12 @@ async def client_main():
               unit: A
     '''
 
-    config = EnergomeraConfig(content=config_yaml)
-    client = EnergomeraHassMqtt(
-        config=config,
-    )
-    config.interpolate()
-
     # Perform communication with the device and issue MQTT calls
-    await client.iec_read_admin()
+    with patch('builtins.open', mock_open(read_data=config_yaml)):
+        main.main([])
+
     # Resulting calls sending data over serial and doing MQTT publishes
     return publish_mock.call_args_list, send_mock.call_args_list
-
-
-def run_main():
-    '''
-    Runs the main flow synchronously and capture calls we interested in.
-    '''
-    try:
-        return asyncio.run(client_main())
-    except AttributeError:
-        # Python 3.6 has no `asyncio.run()`, emulate it
-        return asyncio.get_event_loop().run_until_complete(client_main())
 
 
 (mqtt_publish_call_args, serial_send_call_args) = run_main()
