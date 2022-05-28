@@ -206,7 +206,6 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
                               self._hass_state_topic)
 
 
-# pylint: disable=too-many-instance-attributes
 class EnergomeraHassMqtt:
     """
     Communicates with Energomera energy meters using IEC 62056-21 (supersedes
