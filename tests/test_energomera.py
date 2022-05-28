@@ -147,6 +147,26 @@ serial_exchange = [
         'receive_bytes': b'\x01R1\x02FREQU()\x03\\',
         'send_bytes': b'\x02FREQU(49.96)\r\n\x03x',
     },
+    {
+        'receive_bytes': b'\x01R1\x02ECDPE()\x03:',
+        'send_bytes':
+            b'\x02ECDPE(13.7433546)\r\n'
+            b'ECDPE(5.5472398)\r\n'
+            b'ECDPE(5.7096121)\r\n'
+            b'ECDPE(2.4865027)\r\n'
+            b'ECDPE(0.0)\r\n'
+            b'ECDPE(0.0)\r\n'
+            b'\x03M',
+    },
+    # Entry for HASS sensor with auto-indexed name
+    {
+        'receive_bytes': b'\x01R1\x02CURRE()\x03Z',
+        'send_bytes':
+            b'\x02CURRE(1.479)\r\n'
+            b'CURRE(2.8716)\r\n'
+            b'CURRE(0.782)\r\n'
+            b'\x03v',
+    },
 ]
 
 # Expected MQTT publish calls of the sequence and contents corresponds to the
@@ -607,6 +627,91 @@ mqtt_publish_calls = [
         'homeassistant/sensor/CE301_00123456/CE301_00123456_FREQU/state',
         payload=json.dumps({'value': '49.96'}),
     ),
+    # MQTT calls for HASS entry with auto-indexed name
+    call(
+        'homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_CURRE_INDEXED_0/config',
+        payload=json.dumps(
+            {
+                'name': 'Current 0',
+                'device': {
+                    'name': '00123456',
+                    'ids': 'CE301_00123456',
+                    'model': 'CE301',
+                    'sw_version': '12',
+                },
+                'device_class': 'current',
+                'unique_id': 'CE301_00123456_CURRE_INDEXED_0',
+                'unit_of_measurement': 'A',
+                'state_class': 'measurement',
+                'state_topic': 'homeassistant/sensor/CE301_00123456'
+                               '/CE301_00123456_CURRE_INDEXED_0/state',
+                'value_template': '{{ value_json.value }}',
+            }
+        ),
+        retain=True,
+    ),
+    call(
+        'homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_CURRE_INDEXED_0/state',
+        payload=json.dumps({'value': '1.479'}),
+    ),
+    call(
+        'homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_CURRE_INDEXED_1/config',
+        payload=json.dumps(
+            {
+                'name': 'Current 1',
+                'device': {
+                    'name': '00123456',
+                    'ids': 'CE301_00123456',
+                    'model': 'CE301',
+                    'sw_version': '12',
+                },
+                'device_class': 'current',
+                'unique_id': 'CE301_00123456_CURRE_INDEXED_1',
+                'unit_of_measurement': 'A',
+                'state_class': 'measurement',
+                'state_topic': 'homeassistant/sensor/CE301_00123456'
+                               '/CE301_00123456_CURRE_INDEXED_1/state',
+                'value_template': '{{ value_json.value }}',
+            }
+        ),
+        retain=True,
+    ),
+    call(
+        'homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_CURRE_INDEXED_1/state',
+        payload=json.dumps({'value': '2.8716'}),
+    ),
+    call(
+        'homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_CURRE_INDEXED_2/config',
+        payload=json.dumps(
+            {
+                'name': 'Current 2',
+                'device': {
+                    'name': '00123456',
+                    'ids': 'CE301_00123456',
+                    'model': 'CE301',
+                    'sw_version': '12',
+                },
+                'device_class': 'current',
+                'unique_id': 'CE301_00123456_CURRE_INDEXED_2',
+                'unit_of_measurement': 'A',
+                'state_class': 'measurement',
+                'state_topic': 'homeassistant/sensor/CE301_00123456'
+                               '/CE301_00123456_CURRE_INDEXED_2/state',
+                'value_template': '{{ value_json.value }}',
+            }
+        ),
+        retain=True,
+    ),
+    call(
+        'homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_CURRE_INDEXED_2/state',
+        payload=json.dumps({'value': '0.782'}),
+    ),
 ]
 
 
@@ -649,6 +754,92 @@ async def client_main():
           host: mqtt_dummy_host
           user: mqtt_dummy_user
           password: mqtt_dummy_password
+        parameters:
+            - address: ET0PE
+              device_class: energy
+              name: Cumulative energy
+              response_idx: 0
+              state_class: total_increasing
+              unit: kWh
+            - address: ECMPE
+              device_class: energy
+              name: Monthly energy
+              response_idx: 0
+              state_class: total
+              unit: kWh
+            - additional_data: '{{ energomera_prev_month }}'
+              address: ENMPE
+              device_class: energy
+              entity_name: ENMPE_PREV_MONTH
+              name: Cumulative energy, previous month
+              response_idx: 0
+              state_class: total_increasing
+              unit: kWh
+            - additional_data: '{{ energomera_prev_month }}'
+              address: EAMPE
+              device_class: energy
+              entity_name: ECMPE_PREV_MONTH
+              name: Previous month energy
+              response_idx: 0
+              state_class: total
+              unit: kWh
+            - address: ECDPE
+              device_class: energy
+              name: Daily energy
+              response_idx: 0
+              state_class: total
+              unit: kWh
+            - address: POWPP
+              device_class: power
+              name:
+                  - Active energy, phase A
+                  - Active energy, phase B
+                  - Active energy, phase C
+              state_class: measurement
+              unit: kW
+            - address: POWEP
+              device_class: power
+              name: Active energy
+              state_class: measurement
+              unit: kW
+            - address: VOLTA
+              device_class: voltage
+              name:
+              - Voltage, phase A
+              - Voltage, phase B
+              - Voltage, phase C
+              state_class: measurement
+              unit: V
+            - address: VNULL
+              device_class: voltage
+              name: Neutral voltage
+              state_class: measurement
+              unit: V
+            - address: CURRE
+              device_class: current
+              name:
+              - Current, phase A
+              - Current, phase B
+              - Current, phase C
+              state_class: measurement
+              unit: A
+            - address: FREQU
+              device_class: frequency
+              name: Frequency
+              state_class: measurement
+              unit: Hz
+            - address: ECDPE
+              device_class: energy
+              name: Daily energy
+              response_idx: 100
+              state_class: total
+              unit: kWh
+            - address: CURRE
+              device_class: current
+              name: Current
+              state_class: measurement
+              entity_name: CURRE_INDEXED
+              unit: A
     '''
 
     config = EnergomeraConfig(content=config_yaml)
