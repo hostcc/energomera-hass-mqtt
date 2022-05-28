@@ -38,8 +38,23 @@ _LOGGER = logging.getLogger(__name__)
 
 class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
     """
-    tbd
+    Processes entity received from the meter IEC 62056-21 protocol in
+    accordance with given configuration from the `parameters` section and sends
+    them over to HomeAssistant using MQTT.
+
+    :param dict mqtt_config: `mqtt` fragment of the configuration
+    :param dict config_param: particular entry from `parameters` configuration
+     section
+    :param iec_item: Entry received from the meter for the specified
+     `config_param`
+    :param ssl.SSLContext mqtt_ssl_context: TLS context needed with interacting
+     with SSL/TLS enabled MQTT broker
     """
+
+    # Class attribute to store HASS sensors having config payload sent, to
+    # ensure it is done only once per multiple instantiations of the class -
+    # HASS needs sensor disocvery only once, otherwise logs a message re:
+    # sensor has already been discovered
     _hass_config_entities_published = {}
 
     def __init__(self, mqtt_config, config_param, iec_item, mqtt_tls_context):
@@ -61,7 +76,12 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
 
     def set_meter_ids(self, model, sw_version, serial_number):
         """
-        tbd
+        Stores meter identification values (mode, SW version and serial
+        number).
+
+        :param str model: Meter's model
+        :param str sw_version: Software version of the meter
+        :param serial_number: Meter's serial number
         """
         self._model = model
         self._sw_version = sw_version
@@ -69,7 +89,9 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
 
     def iec_try_value_by_index(self):
         """
-        tbd
+        Attempts to pick an item from multi-valued meter's response (if
+        `response_idx` is configured in the entry of `parameters` section being
+        processed).
         """
         if self._config_param.response_idx is not None:
             try:
@@ -86,7 +108,8 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
 
     def hass_gen_hass_sensor_props(self, idx):
         """
-        tbd
+        Generates various properties for the HASS sensor (device and unique
+        IDs, MQTT topic names etc.).
         """
         self._hass_item_name = self._config_param.name
         self._hass_device_id = f'{self._model}_{self._serial_number}'
@@ -120,20 +143,8 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
 
     async def process(self):
         """
-        Reads selected parameters using IEC 62056-21 protocol from the meter
-        and sends them over to HomeAssistant using MQTT.
-
-        :param str address: Address of meter parameter to read
-        :param str name: Name of the HomeAssistant sensor corresponds to the
-         parameter
-        :param str device_class: Device class of the HomeAssistant sensor to
-         send the parameter for
-        :param str state_class: Class of the sensor state in HomeAssistant
-        :param str unit: Unit of measure for the sensor state
-        :param int response_idx: Whether to pick specific entry from
-         multi-value parameter, zero-based
-        :param str entity_name: Name of HASS entity, otherwise `address` is
-         used
+        Processes the entry received from the meter and sends it to HASS over
+        MQTT.
         """
         _LOGGER.debug("Processing entry: IEC address '%s',"
                       " additional data '%s', index in response '%s';"
@@ -182,7 +193,7 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
 
             # Send payloads using MQTT
             async with self._mqtt_client as client:
-                # Send config payload for HomeAssitant discovery only once per
+                # Send config payload for HomeAssistant discovery only once per
                 # sensor
                 if (self._hass_unique_id not in
                         self._hass_config_entities_published):
@@ -191,8 +202,11 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
                         payload=json_config_payload,
                         retain=True,
                     )
-                    self._hass_config_entities_published.setdefault(
-                        self._hass_unique_id, True)
+                    # Mark the config payload for the given sensor as sent
+                    self._hass_config_entities_published[
+                        self._hass_unique_id
+                    ] = True
+
                     _LOGGER.debug("Sent HASS config payload to MQTT topic"
                                   " '%s'",
                                   self._hass_config_topic)
