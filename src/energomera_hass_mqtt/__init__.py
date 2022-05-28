@@ -144,7 +144,7 @@ class EnergomeraHassMqtt:
         if response_idx is not None:
             try:
                 resp = [resp[response_idx]]
-            except KeyError:
+            except IndexError:
                 _LOGGER.error("Response for IEC entry at '%s' doesn't"
                               " contain element at index '%s', skipping.\n"
                               "Response: '%s'",
@@ -171,7 +171,7 @@ class EnergomeraHassMqtt:
                     item_name = name.pop(0)
                 # Otherwise append the item index to make name unique
                 else:
-                    item_name += f'_{idx}'
+                    item_name += f' {idx}'
 
             _LOGGER.debug("Using '%s' as HASS name for IEC enttity"
                           " at '%s' address",
