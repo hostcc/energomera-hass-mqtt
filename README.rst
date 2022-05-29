@@ -126,5 +126,11 @@ Configuration file is in YAML format and supports following elements:
 ===================
 
 Sample service definition for ``systemd`` is provided under
-`<https://github.com/hostcc/energomera-hass-mqtt/tree/main/systemd>`_
+`systemd/ <https://github.com/hostcc/energomera-hass-mqtt/tree/main/systemd>`_
 directory.
+
+Documentation
+=============
+
+Please see `online documentation <https://energomera-hass-mqtt.readthedocs.io>`_ for
+details on the API package provides.
