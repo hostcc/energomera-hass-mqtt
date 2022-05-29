@@ -133,5 +133,5 @@ def test_config_invalid_logging_level():
         mqtt:
             host: a-host
     '''
-    with pytest.raises(EnergomeraConfigError) as exc:
+    with pytest.raises(EnergomeraConfigError):
         EnergomeraConfig(content=invalid_config)
