@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+# pylint: disable=too-many-lines
 '''
 Tests for 'energomera_hass_mqtt' package
 '''
@@ -158,6 +159,15 @@ serial_exchange = [
             b'\x03M',
     },
     # Entry for HASS sensor with auto-indexed name
+    {
+        'receive_bytes': b'\x01R1\x02CURRE()\x03Z',
+        'send_bytes':
+            b'\x02CURRE(1.479)\r\n'
+            b'CURRE(2.8716)\r\n'
+            b'CURRE(0.782)\r\n'
+            b'\x03v',
+    },
+    # Entry for HASS sensor with fallback names
     {
         'receive_bytes': b'\x01R1\x02CURRE()\x03Z',
         'send_bytes':
@@ -711,6 +721,94 @@ mqtt_publish_calls = [
         '/CE301_00123456_CURRE_INDEXED_2/state',
         payload=json.dumps({'value': '0.782'}),
     ),
+    # MQTT calls for HASS entry with fallback names
+    call(
+        'homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_CURRE_INDEXED_FALLBACK_0/config',
+        payload=json.dumps(
+            {
+                'name': 'Current, phase A',
+                'device': {
+                    'name': '00123456',
+                    'ids': 'CE301_00123456',
+                    'model': 'CE301',
+                    'sw_version': '12',
+                },
+                'device_class': 'current',
+                'unique_id': 'CE301_00123456_CURRE_INDEXED_FALLBACK_0',
+                'unit_of_measurement': 'A',
+                'state_class': 'measurement',
+                'state_topic': 'homeassistant/sensor/CE301_00123456'
+                               '/CE301_00123456_CURRE_INDEXED_FALLBACK_0'
+                               '/state',
+                'value_template': '{{ value_json.value }}',
+            }
+        ),
+        retain=True,
+    ),
+    call(
+        'homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_CURRE_INDEXED_FALLBACK_0/state',
+        payload=json.dumps({'value': '1.479'}),
+    ),
+    call(
+        'homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_CURRE_INDEXED_FALLBACK_1/config',
+        payload=json.dumps(
+            {
+                'name': 'CURRE 1',
+                'device': {
+                    'name': '00123456',
+                    'ids': 'CE301_00123456',
+                    'model': 'CE301',
+                    'sw_version': '12',
+                },
+                'device_class': 'current',
+                'unique_id': 'CE301_00123456_CURRE_INDEXED_FALLBACK_1',
+                'unit_of_measurement': 'A',
+                'state_class': 'measurement',
+                'state_topic': 'homeassistant/sensor/CE301_00123456'
+                               '/CE301_00123456_CURRE_INDEXED_FALLBACK_1'
+                               '/state',
+                'value_template': '{{ value_json.value }}',
+            }
+        ),
+        retain=True,
+    ),
+    call(
+        'homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_CURRE_INDEXED_FALLBACK_1/state',
+        payload=json.dumps({'value': '2.8716'}),
+    ),
+    call(
+        'homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_CURRE_INDEXED_FALLBACK_2/config',
+        payload=json.dumps(
+            {
+                'name': 'CURRE 2',
+                'device': {
+                    'name': '00123456',
+                    'ids': 'CE301_00123456',
+                    'model': 'CE301',
+                    'sw_version': '12',
+                },
+                'device_class': 'current',
+                'unique_id': 'CE301_00123456_CURRE_INDEXED_FALLBACK_2',
+                'unit_of_measurement': 'A',
+                'state_class': 'measurement',
+                'state_topic': 'homeassistant/sensor/CE301_00123456'
+                               '/CE301_00123456_CURRE_INDEXED_FALLBACK_2'
+                               '/state',
+                'value_template': '{{ value_json.value }}',
+            }
+        ),
+        retain=True,
+    ),
+    call(
+        'homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_CURRE_INDEXED_FALLBACK_2/state',
+        payload=json.dumps({'value': '0.782'}),
+    ),
 ]
 
 
@@ -841,6 +939,13 @@ def run_main():
               state_class: measurement
               entity_name: CURRE_INDEXED
               unit: A
+            - address: CURRE
+              device_class: current
+              name:
+              - Current, phase A
+              state_class: measurement
+              unit: A
+              entity_name: CURRE_INDEXED_FALLBACK
     '''
 
     # Perform communication with the device and issue MQTT calls
