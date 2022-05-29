@@ -19,20 +19,19 @@
 # SOFTWARE.
 
 """
-CLI interface to `EnergomeraHassMqtt` class
+CLI interface to :class:`EnergomeraHassMqtt` class
 """
-import sys
 import argparse
 import logging
 import asyncio
 from . import EnergomeraHassMqtt, EnergomeraConfig
+from .const import DEFAULT_CONFIG_FILE
 
 
-def process_cmdline(argv):
+def process_cmdline():
     """
     Processes command line parameters.
 
-    :param list argv: Command line parameters
     :return: Processed parameters
     :rtype: argparse.Namespace
     """
@@ -40,19 +39,17 @@ def process_cmdline(argv):
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '-c', '--config-file',
-        default='config.yaml',
+        default=DEFAULT_CONFIG_FILE,
         help="Path to configuration file (default: '%(default)s')"
     )
-    return parser.parse_args(argv)
+    return parser.parse_args()
 
 
-async def async_main(argv):
+async def async_main():
     """
     Primary async entry point.
-
-    :param list argv: Command line parameters
     """
-    args = process_cmdline(argv)
+    args = process_cmdline()
 
     config = EnergomeraConfig(args.config_file)
     logging.basicConfig(level=config.logging_level)
@@ -69,17 +66,15 @@ async def async_main(argv):
         await asyncio.sleep(config.of.general.intercycle_delay)
 
 
-def main(argv=sys.argv[1:]):
+def main():
     """
     Main entry point for the CLI.
-
-    :param list argv: Command line parameters, typically `sys.argv`
     """
     try:
-        asyncio.run(async_main(argv))
+        asyncio.run(async_main())
     except AttributeError:
         # Python 3.6 has no `asyncio.run()`, emulate it
-        asyncio.get_event_loop().run_until_complete(async_main(argv))
+        asyncio.get_event_loop().run_until_complete(async_main())
 
 
 if __name__ == '__main__':
