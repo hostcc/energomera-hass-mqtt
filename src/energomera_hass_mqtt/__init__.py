@@ -123,7 +123,14 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
             self._hass_unique_id += f'_{idx}'
             # Pick next name if a list has been provided
             if isinstance(self._config_param.name, list):
-                self._hass_item_name = self._config_param.name[idx]
+                try:
+                    self._hass_item_name = self._config_param.name[idx]
+                except IndexError:
+                    # Fallback to address + index if name at entry index
+                    # doesn't exist
+                    self._hass_item_name = (
+                        f'{self._config_param.address} {idx}'
+                    )
             # Otherwise append the item index to make name unique
             else:
                 self._hass_item_name += f' {idx}'
@@ -156,69 +163,81 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
 
         self.iec_try_value_by_index()
         for idx, iec_value in enumerate(self._iec_item):
-            self.hass_gen_hass_sensor_props(idx)
-            _LOGGER.debug("Using '%s' as HASS name for IEC enttity"
-                          " at '%s' address",
-                          self._hass_item_name, self._config_param.address)
+            try:
+                self.hass_gen_hass_sensor_props(idx)
+                _LOGGER.debug("Using '%s' as HASS name for IEC enttity"
+                              " at '%s' address",
+                              self._hass_item_name, self._config_param.address)
 
-            # Send payloads using MQTT
-            async with self._mqtt_client as client:
-                # Send config payload for HomeAssistant discovery only once per
-                # sensor
-                if (self._hass_unique_id not in
-                        self._hass_config_entities_published):
+                # Send payloads using MQTT
+                async with self._mqtt_client as client:
+                    # Send config payload for HomeAssistant discovery only once
+                    # per sensor
+                    if (self._hass_unique_id not in
+                            self._hass_config_entities_published):
 
-                    # Config payload for sensor discovery
-                    config_payload = dict(
-                        name=self._hass_item_name,
-                        device=dict(
-                            name=self._serial_number,
-                            ids=self._hass_device_id,
-                            model=self._model,
-                            sw_version=self._sw_version,
-                        ),
-                        device_class=self._config_param.device_class,
-                        unique_id=self._hass_unique_id,
-                        unit_of_measurement=self._config_param.unit,
-                        state_class=self._config_param.state_class,
-                        state_topic=self._hass_state_topic,
-                        value_template='{{ value_json.value }}',
+                        # Config payload for sensor discovery
+                        config_payload = dict(
+                            name=self._hass_item_name,
+                            device=dict(
+                                name=self._serial_number,
+                                ids=self._hass_device_id,
+                                model=self._model,
+                                sw_version=self._sw_version,
+                            ),
+                            device_class=self._config_param.device_class,
+                            unique_id=self._hass_unique_id,
+                            unit_of_measurement=self._config_param.unit,
+                            state_class=self._config_param.state_class,
+                            state_topic=self._hass_state_topic,
+                            value_template='{{ value_json.value }}',
+                        )
+                        json_config_payload = json.dumps(config_payload)
+                        _LOGGER.debug("MQTT config payload for HASS"
+                                      " auto-discovery: '%s'",
+                                      json_config_payload)
+
+                        await client.publish(
+                            self._hass_config_topic,
+                            payload=json_config_payload,
+                            retain=True,
+                        )
+                        # Mark the config payload for the given sensor as sent
+                        self._hass_config_entities_published[
+                            self._hass_unique_id
+                        ] = True
+
+                        _LOGGER.debug("Sent HASS config payload to MQTT topic"
+                                      " '%s'",
+                                      self._hass_config_topic)
+
+                    # Sensor state payload
+                    state_payload = dict(
+                        value=iec_value.value
                     )
-                    json_config_payload = json.dumps(config_payload)
-                    _LOGGER.debug("MQTT config payload for HASS"
-                                  " auto-discovery: '%s'",
-                                  json_config_payload)
-
-                    await client.publish(
-                        self._hass_config_topic,
-                        payload=json_config_payload,
-                        retain=True,
-                    )
-                    # Mark the config payload for the given sensor as sent
-                    self._hass_config_entities_published[
-                        self._hass_unique_id
-                    ] = True
-
-                    _LOGGER.debug("Sent HASS config payload to MQTT topic"
+                    json_state_payload = json.dumps(state_payload)
+                    _LOGGER.debug("MQTT state payload for HASS auto-discovery:"
                                   " '%s'",
-                                  self._hass_config_topic)
+                                  json_state_payload)
 
-                # Sensor state payload
-                state_payload = dict(
-                    value=iec_value.value
-                )
-                json_state_payload = json.dumps(state_payload)
-                _LOGGER.debug("MQTT state payload for HASS auto-discovery:"
-                              " '%s'",
-                              json_state_payload)
+                    # Send sensor state payload
+                    await client.publish(
+                        self._hass_state_topic,
+                        payload=json_state_payload,
+                    )
+                    _LOGGER.debug("Sent HASS state payload to MQTT topic '%s'",
+                                  self._hass_state_topic)
 
-                # Send sensor state payload
-                await client.publish(
-                    self._hass_state_topic,
-                    payload=json_state_payload,
-                )
-                _LOGGER.debug("Sent HASS state payload to MQTT topic '%s'",
-                              self._hass_state_topic)
+            # pylint: disable=broad-except
+            except Exception as exc:
+                _LOGGER.error('Got following exception while processing'
+                              ' entity at address %s (index %s),'
+                              " skipping to next.\n"
+                              " Configuration parameters: %s\n"
+                              ' Exception: %s',
+                              self._config_param.address, idx,
+                              self._config_param, str(exc))
+                continue
 
 
 class EnergomeraHassMqtt:
