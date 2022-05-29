@@ -39,14 +39,14 @@ _LOGGER = logging.getLogger(__name__)
 class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
     """
     Processes entity received from the meter IEC 62056-21 protocol in
-    accordance with given configuration from the `parameters` section and sends
-    them over to HomeAssistant using MQTT.
+    accordance with given configuration from the ``parameters`` section and
+    sends them over to HomeAssistant using MQTT.
 
-    :param dict mqtt_config: `mqtt` fragment of the configuration
-    :param dict config_param: particular entry from `parameters` configuration
-     section
-    :param iec_item: Entry received from the meter for the specified
-     `config_param`
+    :param dict mqtt_config: ``mqtt`` fragment of the configuration
+    :param dict config_param: particular entry from ``parameters``
+     configuration section
+    :param iec62056_21.messages.AnswerDataMessage iec_item: Entry received from
+     the meter for the specified ``config_param``
     :param ssl.SSLContext mqtt_ssl_context: TLS context needed with interacting
      with SSL/TLS enabled MQTT broker
     """
@@ -81,7 +81,7 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
 
         :param str model: Meter's model
         :param str sw_version: Software version of the meter
-        :param serial_number: Meter's serial number
+        :param str serial_number: Meter's serial number
         """
         self._model = model
         self._sw_version = sw_version
@@ -90,8 +90,8 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
     def iec_try_value_by_index(self):
         """
         Attempts to pick an item from multi-valued meter's response (if
-        `response_idx` is configured in the entry of `parameters` section being
-        processed).
+        ``response_idx`` is configured in the entry of `parameters` section
+        being processed).
         """
         if self._config_param.response_idx is not None:
             try:
@@ -300,7 +300,7 @@ class EnergomeraHassMqtt:
         :param str additional_data: Additional data to read the parameter with
          (argument to parameter's address)
         :return: Parameter's data received from the meter
-        :rtype: str
+        :rtype: :class:`iec62056_21.messages.AnswerDataMessage`
         """
 
         request = CommandMessage.for_single_read(
