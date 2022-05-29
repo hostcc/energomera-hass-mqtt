@@ -14,8 +14,13 @@
 Description
 ===========
 
-Python package to read data from Energomera energy meter and send over to
-HomeAssistant using MQTT.
+Python package to read data from `Energomera energy meter
+<https://energomera-by.translate.goog/products/?_x_tr_sl=ru&_x_tr_tl=en&_x_tr_hl=en-US&_x_tr_pto=wapp&_x_tr_sch=http`_
+(possibly supporting `others similar
+<http://www.energomera.ru/en/products/meters>`_) and send over to HomeAssistant
+using MQTT.
+
+The package has been developed with CE301BY three-phase meter.
 
 Dependencies
 ============
