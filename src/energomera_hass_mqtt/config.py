@@ -23,10 +23,11 @@ Module to instantiate configuration data for `EnergomeraHassMqtt` class from
 YAML files with defaults and schema validation.
 """
 
+import logging
 from datetime import (date, timedelta)
 import re
 import yaml
-from schema import Schema, Optional, SchemaError, Or
+from schema import Schema, Optional, SchemaError, Or, And
 from addict import Dict
 
 
@@ -174,6 +175,14 @@ class EnergomeraConfig:
              entity_name=None),
     ]
 
+    _logging_levels = dict(
+        critical=logging.CRITICAL,
+        error=logging.ERROR,
+        warning=logging.WARNING,
+        info=logging.INFO,
+        debug=logging.DEBUG,
+    )
+
     def _get_schema(self):
         """
         Returns schema for the configuration file.
@@ -185,7 +194,9 @@ class EnergomeraConfig:
         general_defaults = Dict(
             oneshot=False,
             intercycle_delay=30,
+            logging_level='error',
         )
+
         return Schema({
             Optional('general', default=general_defaults): Schema({
                 # Re-use defaults from `general_defaults`
@@ -193,6 +204,12 @@ class EnergomeraConfig:
                          default=general_defaults.oneshot): bool,
                 Optional('intercycle_delay',
                          default=general_defaults.intercycle_delay): int,
+                Optional('logging_level',
+                         default=general_defaults.logging_level): And(
+                    str,
+                    lambda x: x in self._logging_levels,
+                    error=f'Invalid logging level - should be one of {", ".join(self._logging_levels.keys())}'
+                ),
             }),
             'meter': {
                 'port': str,
@@ -262,6 +279,17 @@ class EnergomeraConfig:
         """
         return self._config
 
+    @property
+    def logging_level(self):
+        """
+        Returns logging level suitable for `logging` library 
+
+        :return: Logging level
+        :rtype: int
+        """
+
+        return self._logging_levels.get(self._config.general.logging_level)
+
     def interpolate(self):
         """
         Interpolates certain expressions in `parameters` section of the
@@ -269,8 +297,8 @@ class EnergomeraConfig:
 
         Supported expressions:
 
-        - `{{ energomera_prev_month }}`: Previous month in meter's format
-        - `{{ energomera_prev_day }}`: Previous day in meter's format
+        - ``{{ energomera_prev_month }}``: Previous month in meter's format
+        - ``{{ energomera_prev_day }}``: Previous day in meter's format
         """
         for param in self._config.parameters:
             for key, value in param.items():

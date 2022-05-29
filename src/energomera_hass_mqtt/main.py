@@ -23,6 +23,7 @@ CLI interface to `EnergomeraHassMqtt` class
 """
 import sys
 import argparse
+import logging
 import asyncio
 from . import EnergomeraHassMqtt, EnergomeraConfig
 
@@ -54,6 +55,7 @@ async def async_main(argv):
     args = process_cmdline(argv)
 
     config = EnergomeraConfig(args.config_file)
+    logging.basicConfig(level=config.logging_level)
     client = EnergomeraHassMqtt(config)
     while True:
         config.interpolate()
@@ -67,7 +69,7 @@ async def async_main(argv):
         await asyncio.sleep(config.of.general.intercycle_delay)
 
 
-def main(argv):
+def main(argv=sys.argv[1:]):
     """
     Main entry point for the CLI.
 
@@ -81,4 +83,4 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+    main()

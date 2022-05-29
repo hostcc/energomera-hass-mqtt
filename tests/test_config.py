@@ -22,6 +22,7 @@
 Tests for `EnergomeraConfig` class.
 '''
 
+import logging
 from unittest.mock import mock_open, patch
 import pytest
 from energomera_hass_mqtt import EnergomeraConfig, EnergomeraConfigError
@@ -50,6 +51,7 @@ def test_valid_config_file():
         'general': {
             'oneshot': False,
             'intercycle_delay': 30,
+            'logging_level': 'error',
         },
         'meter': {
             'port': 'dummy_serial',
@@ -79,6 +81,7 @@ def test_valid_config_file():
         config = EnergomeraConfig(config_file='dummy')
         assert isinstance(config.of, dict)
         assert config.of == valid_config
+        assert config.logging_level == logging.ERROR
 
 
 def test_empty_file():
@@ -115,3 +118,20 @@ def test_config_required_params():
     assert str(exc_info.value) == (
         "Either 'config_file' or 'content' should be provided"
     )
+
+
+def test_config_invalid_logging_level():
+    '''
+    Tests for invalid logging level properly reported.
+    '''
+    invalid_config = '''
+        general:
+            logging_level: invalid
+        meter:
+            port: a-port
+            password: a-password
+        mqtt:
+            host: a-host
+    '''
+    with pytest.raises(EnergomeraConfigError) as exc:
+        EnergomeraConfig(content=invalid_config)
