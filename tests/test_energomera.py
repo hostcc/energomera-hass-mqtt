@@ -22,6 +22,7 @@
 '''
 Tests for 'energomera_hass_mqtt' package
 '''
+import sys
 import json
 from unittest.mock import call, MagicMock, patch, mock_open
 try:
@@ -950,7 +951,8 @@ def run_main():
 
     # Perform communication with the device and issue MQTT calls
     with patch('builtins.open', mock_open(read_data=config_yaml)):
-        main.main([])
+        with patch.object(sys, 'argv', ['dummy']):
+            main.main()
 
     # Resulting calls sending data over serial and doing MQTT publishes
     return publish_mock.call_args_list, send_mock.call_args_list
