@@ -19,8 +19,8 @@
 # SOFTWARE.
 
 """
-Module to instantiate configuration data for `EnergomeraHassMqtt` class from
-YAML files with defaults and schema validation.
+Module to instantiate configuration data for :class:`EnergomeraHassMqtt` class
+from YAML files with defaults and schema validation.
 """
 
 import logging
@@ -29,6 +29,7 @@ import re
 import yaml
 from schema import Schema, Optional, SchemaError, Or, And
 from addict import Dict
+from .const import DEFAULT_CONFIG
 
 
 class EnergomeraConfigError(Exception):
@@ -39,7 +40,7 @@ class EnergomeraConfigError(Exception):
 
 class EnergomeraConfig:
     """
-    Class representing configuration for `EnergomeraHassMqtt` one.
+    Class representing configuration for :class:`EnergomeraHassMqtt` one.
 
     :param str config_file: Name of configuration file
     :param str content: Literal content representing the configuration
@@ -49,7 +50,7 @@ class EnergomeraConfig:
         """
         Static method to calculate previous month in meter's format.
 
-        :return: Previous month formatted as `<month number>.<year>`
+        :return: Previous month formatted as ``<month number>.<year>``
         :rtype: str
         """
         return (
@@ -62,118 +63,14 @@ class EnergomeraConfig:
         """
         Static method to calculate previous day in meter's format.
 
-        :return: Previous day formatted as `<day number>.<month
-          number>.<year>`
+        :return: Previous day formatted as ``<day number>.<month
+          number>.<year>``
         :rtype: str
         """
         return (
             (date.today() - timedelta(days=1))
             .strftime('%d.%m.%y')
         )
-
-    # Default parameters to use when configuration file has none
-    _default_parameters = [
-        dict(address='ET0PE',
-             name='Cumulative energy',
-             device_class='energy',
-             state_class='total_increasing',
-             unit='kWh',
-             response_idx=0,
-             additional_data=None,
-             entity_name=None),
-        dict(address='ECMPE',
-             name='Monthly energy',
-             device_class='energy',
-             state_class='total',
-             unit='kWh',
-             response_idx=0,
-             additional_data=None,
-             entity_name=None),
-        dict(address='ENMPE',
-             name='Cumulative energy, previous month',
-             device_class='energy',
-             state_class='total_increasing',
-             unit='kWh',
-             response_idx=0,
-             additional_data='{{ energomera_prev_month }}',
-             entity_name='ENMPE_PREV_MONTH'),
-        dict(address='EAMPE',
-             name='Previous month energy',
-             device_class='energy',
-             state_class='total',
-             unit='kWh',
-             response_idx=0,
-             additional_data='{{ energomera_prev_month }}',
-             entity_name='ECMPE_PREV_MONTH'),
-        dict(address='ECDPE',
-             name='Daily energy',
-             device_class='energy',
-             state_class='total',
-             unit='kWh',
-             response_idx=0,
-             additional_data=None,
-             entity_name=None),
-        dict(address='POWPP',
-             name=[
-                 'Active energy, phase A',
-                 'Active energy, phase B',
-                 'Active energy, phase C'
-             ],
-             device_class='power',
-             state_class='measurement',
-             unit='kW',
-             response_idx=None,
-             additional_data=None,
-             entity_name=None),
-        dict(address='POWEP',
-             name='Active energy',
-             device_class='power',
-             state_class='measurement',
-             unit='kW',
-             response_idx=None,
-             additional_data=None,
-             entity_name=None),
-        dict(address='VOLTA',
-             name=[
-                 'Voltage, phase A',
-                 'Voltage, phase B',
-                 'Voltage, phase C'
-             ],
-             device_class='voltage',
-             state_class='measurement',
-             unit='V',
-             response_idx=None,
-             additional_data=None,
-             entity_name=None),
-        dict(address='VNULL',
-             name='Neutral voltage',
-             device_class='voltage',
-             state_class='measurement',
-             unit='V',
-             response_idx=None,
-             additional_data=None,
-             entity_name=None),
-        dict(address='CURRE',
-             name=[
-                 'Current, phase A',
-                 'Current, phase B',
-                 'Current, phase C'
-             ],
-             device_class='current',
-             state_class='measurement',
-             unit='A',
-             response_idx=None,
-             additional_data=None,
-             entity_name=None),
-        dict(address='FREQU',
-             name='Frequency',
-             device_class='frequency',
-             state_class='measurement',
-             unit='Hz',
-             response_idx=None,
-             additional_data=None,
-             entity_name=None),
-    ]
 
     _logging_levels = dict(
         critical=logging.CRITICAL,
@@ -191,24 +88,19 @@ class EnergomeraConfig:
           file's contents
         :rtype: Schema
         """
-        general_defaults = Dict(
-            oneshot=False,
-            intercycle_delay=30,
-            logging_level='error',
-        )
-
         return Schema({
-            Optional('general', default=general_defaults): Schema({
+            Optional('general', default=DEFAULT_CONFIG.general): Schema({
                 # Re-use defaults from `general_defaults`
                 Optional('oneshot',
-                         default=general_defaults.oneshot): bool,
+                         default=DEFAULT_CONFIG.general.oneshot): bool,
                 Optional('intercycle_delay',
-                         default=general_defaults.intercycle_delay): int,
+                         default=DEFAULT_CONFIG.general.intercycle_delay): int,
                 Optional('logging_level',
-                         default=general_defaults.logging_level): And(
+                         default=DEFAULT_CONFIG.general.logging_level): And(
                     str,
                     lambda x: x in self._logging_levels,
-                    error=f'Invalid logging level - should be one of {", ".join(self._logging_levels.keys())}'
+                    error='Invalid logging level - should be one of'
+                          f' {", ".join(self._logging_levels.keys())}'
                 ),
             }),
             'meter': {
@@ -222,7 +114,7 @@ class EnergomeraConfig:
                 Optional('hass_discovery_prefix',
                          default='homeassistant'): str,
             },
-            Optional('parameters', default=self._default_parameters): [
+            Optional('parameters', default=DEFAULT_CONFIG.parameters): [
                 Schema({
                     'address': str,
                     'name': Or(str, list),
@@ -282,7 +174,7 @@ class EnergomeraConfig:
     @property
     def logging_level(self):
         """
-        Returns logging level suitable for `logging` library 
+        Returns logging level suitable for :mod:`logging` library
 
         :return: Logging level
         :rtype: int
@@ -292,7 +184,7 @@ class EnergomeraConfig:
 
     def interpolate(self):
         """
-        Interpolates certain expressions in `parameters` section of the
+        Interpolates certain expressions in ``parameters`` section of the
         configuration.
 
         Supported expressions:
