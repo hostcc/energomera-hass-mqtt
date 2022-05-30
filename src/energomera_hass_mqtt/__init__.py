@@ -30,7 +30,7 @@ import ssl
 from iec62056_21.messages import CommandMessage
 from iec62056_21.client import Iec6205621Client
 from iec62056_21 import utils
-from asyncio_mqtt import Client as mqtt_client
+import asyncio_mqtt
 from .config import EnergomeraConfig, EnergomeraConfigError  # noqa:F401
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,12 +43,11 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
     sends them over to HomeAssistant using MQTT.
 
     :param dict mqtt_config: ``mqtt`` fragment of the configuration
+    :param asyncio_mqtt.Client mqtt_client: Instance of MQTT client
     :param dict config_param: particular entry from ``parameters``
      configuration section
     :param iec62056_21.messages.AnswerDataMessage iec_item: Entry received from
      the meter for the specified ``config_param``
-    :param ssl.SSLContext mqtt_ssl_context: TLS context needed with interacting
-     with SSL/TLS enabled MQTT broker
     """
 
     # Class attribute to store HASS sensors having config payload sent, to
@@ -57,14 +56,11 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
     # sensor has already been discovered
     _hass_config_entities_published = {}
 
-    def __init__(self, mqtt_config, config_param, iec_item, mqtt_tls_context):
+    def __init__(self, mqtt_config, mqtt_client, config_param, iec_item):
         self._config_param = config_param
         self._iec_item = iec_item
         self._mqtt_config = mqtt_config
-        self._mqtt_client = mqtt_client(
-            hostname=mqtt_config.host, username=mqtt_config.user,
-            password=mqtt_config.password, tls_context=mqtt_tls_context
-        )
+        self._mqtt_client = mqtt_client
         self._hass_item_name = None
         self._hass_device_id = None
         self._hass_unique_id = None
@@ -239,7 +235,7 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
                               self._config_param, str(exc))
                 continue
 
-
+# pylint: disable=too-many-instance-attributes
 class EnergomeraHassMqtt:
     """
     Communicates with Energomera energy meters using IEC 62056-21 (supersedes
@@ -284,6 +280,10 @@ class EnergomeraHassMqtt:
 
         self._client = Iec6205621Client.with_serial_transport(
             port=config.of.meter.port, password=config.of.meter.password
+        )
+        self._mqtt_client = asyncio_mqtt.Client(
+            hostname=config.of.mqtt.host, username=config.of.mqtt.user,
+            password=config.of.mqtt.password, tls_context=mqtt_tls_context
         )
         self._hass_discovery_prefix = config.of.mqtt.hass_discovery_prefix
         self._model = None
@@ -343,7 +343,9 @@ class EnergomeraHassMqtt:
             )
 
             hass_item = IecToHassSensor(
-                self._config.of.mqtt, param, iec_item, self._mqtt_tls_context
+                mqtt_config=self._config.of.mqtt,
+                mqtt_client=self._mqtt_client, config_param=param,
+                iec_item=iec_item
             )
             hass_item.set_meter_ids(model, sw_version, serial_number)
             await hass_item.process()
