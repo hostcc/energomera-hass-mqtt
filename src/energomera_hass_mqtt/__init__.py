@@ -235,6 +235,7 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
                               self._config_param, str(exc))
                 continue
 
+
 # pylint: disable=too-many-instance-attributes
 class EnergomeraHassMqtt:
     """
