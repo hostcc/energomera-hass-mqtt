@@ -25,6 +25,7 @@ from YAML files with defaults and schema validation.
 
 import logging
 from datetime import (date, timedelta)
+from copy import deepcopy
 import re
 import yaml
 from schema import Schema, Optional, SchemaError, Or, And
@@ -160,6 +161,9 @@ class EnergomeraConfig:
         # Store the configuration state as `addict.Dict` so access by (possibly
         # chained) attributes is avavilable
         self._config = Dict(config)
+        # Make a copy of the original configuration for the `interpolate()`
+        # method to access initially defined interpolation expressions if any
+        self._orig_config = deepcopy(self._config)
 
     @property
     def of(self):   # pylint:disable=C0103
@@ -185,18 +189,23 @@ class EnergomeraConfig:
     def interpolate(self):
         """
         Interpolates certain expressions in ``parameters`` section of the
-        configuration.
+        configuration. The method uses original configuration as read from the
+        source, to access expressions to interpolate.
 
         Supported expressions:
 
         - ``{{ energomera_prev_month }}``: Previous month in meter's format
         - ``{{ energomera_prev_day }}``: Previous day in meter's format
         """
-        for param in self._config.parameters:
+        # Iterate over the original configuration
+        for idx, param in enumerate(self._orig_config.parameters):
             for key, value in param.items():
+                # Interpolate expressions in string values
                 if isinstance(value, str):
                     value = re.sub(r'{{\s*energomera_prev_month\s*}}',
                                    self._energomera_prev_month(), value)
                     value = re.sub(r'{{\s*energomera_prev_day\s*}}',
                                    self._energomera_prev_day(), value)
-                    param[key] = value
+                    # Store the (possibly) interpolated value to the
+                    # configuration exposed to the consumers
+                    self._config.parameters[idx][key] = value
