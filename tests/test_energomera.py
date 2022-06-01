@@ -25,6 +25,7 @@ Tests for 'energomera_hass_mqtt' package
 import sys
 import json
 from unittest.mock import call, MagicMock, patch, mock_open
+from freezegun import freeze_time
 try:
     from unittest.mock import AsyncMock
 except ImportError:
@@ -813,6 +814,7 @@ mqtt_publish_calls = [
 ]
 
 
+@freeze_time("2022-05-01")
 def run_main():
     '''
     Execute the main flow interacting with the device and MQTT.
