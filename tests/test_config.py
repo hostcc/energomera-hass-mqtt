@@ -24,6 +24,7 @@ Tests for `EnergomeraConfig` class.
 
 import logging
 from unittest.mock import mock_open, patch
+from freezegun import freeze_time
 import pytest
 from energomera_hass_mqtt import EnergomeraConfig, EnergomeraConfigError
 
@@ -135,3 +136,67 @@ def test_config_invalid_logging_level():
     '''
     with pytest.raises(EnergomeraConfigError):
         EnergomeraConfig(content=invalid_config)
+
+
+@pytest.fixture(scope='module')
+def config_with_interpolations():
+    '''
+    Provides configuration object with interpolation expressions. To be
+    instantiated once per module to verify multiple calls to interpolate over
+    single instance of configuration object.
+    '''
+    interpolated_config_yaml = '''
+        meter:
+          port: dummy_serial
+          password: dummy_password
+        mqtt:
+          host: a_mqtt_host
+          user: a_mqtt_user
+          password: mqtt_dummy_password
+        parameters:
+            - name: dummy_param1
+              address: dummy_addr1
+              device_class: dummy_class
+              state_class: dummy_state
+              unit: dummy
+              additional_data: '{{ energomera_prev_month }}'
+            - name: dummy_param2
+              address: dummy_addr1
+              device_class: dummy_class
+              state_class: dummy_state
+              unit: dummy
+              additional_data: '{{ energomera_prev_day }}'
+    '''
+
+    with patch('builtins.open', mock_open(read_data=interpolated_config_yaml)):
+        config = EnergomeraConfig(config_file='dummy')
+    return config
+
+
+@pytest.mark.parametrize('frozen_date,prev_month,prev_day', [
+    ('2022-05-01', '04.22', '30.04.22'),
+    ('2022-05-10', '04.22', '09.05.22'),
+    ('2022-06-01', '05.22', '31.05.22'),
+    ('2023-01-01', '12.22', '31.12.22'),
+])
+def test_config_interpolation_date_change(
+    # `pylint` mistekenly treats fixture as re-definition
+    # pylint: disable=redefined-outer-name
+    config_with_interpolations, frozen_date, prev_month, prev_day
+):
+    '''
+    Verifies for interpolated expressions properly processed when `interpolate`
+    method is called repeatedly on single configuration object.
+    '''
+    with freeze_time(frozen_date):
+        config_with_interpolations.interpolate()
+        assert (
+            config_with_interpolations
+            .of.parameters[0]
+            .additional_data == prev_month
+        )
+        assert (
+            config_with_interpolations
+            .of.parameters[1]
+            .additional_data == prev_day
+        )
