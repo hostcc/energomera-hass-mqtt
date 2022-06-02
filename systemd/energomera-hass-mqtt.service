@@ -4,10 +4,13 @@ After=network.target
 
 [Service]
 Type=exec
+ExecStartPre=+/bin/sh -c 'chgrp -R 65000 /etc/energomera/'
 ExecStart=energomera-hass-mqtt
+ExecStopPost=+/bin/sh -c 'chgrp -R root /etc/energomera/'
 Restart=always
+Group=65000
+SupplementaryGroups=dialout
 DynamicUser=yes
-Group=dialout
 StandardOutput=journal
 StandardError=inherit
 NoNewPrivileges=yes

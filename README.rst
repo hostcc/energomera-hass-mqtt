@@ -36,7 +36,7 @@ need to install it directly from Github:
 
 .. code:: shell
 
-     pip install git+https://github.com/hostcc/energomera-hass-mqtt@main
+     pip install git+https://github.com/hostcc/energomera-hass-mqtt@master
 
 Usage
 =====
@@ -126,7 +126,7 @@ Configuration file is in YAML format and supports following elements:
 ===================
 
 Sample service definition for ``systemd`` is provided under
-`systemd/ <https://github.com/hostcc/energomera-hass-mqtt/tree/main/systemd>`_
+`systemd/ <https://github.com/hostcc/energomera-hass-mqtt/tree/master/systemd>`_
 directory.
 
 Documentation
