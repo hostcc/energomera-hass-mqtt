@@ -115,6 +115,13 @@ jobs:
     permissions:
       contents: read
       packages: write
+    # Publishing Docker images only happens when a release published out of the
+    # main branch
+    if: >-
+      github.event_name == 'release'
+      && github.event.action == 'published'
+      && (github.event.release.target_commitish == 'main'
+         || github.event.release.target_commitish == 'master')
     steps:
       - name: Checkout the code
         uses: actions/checkout@v2
