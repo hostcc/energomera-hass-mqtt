@@ -36,7 +36,7 @@ need to install it directly from Github:
 
 .. code:: shell
 
-     pip install git+https://github.com/hostcc/energomera-hass-mqtt@main
+     pip install git+https://github.com/hostcc/energomera-hass-mqtt@master
 
 Usage
 =====
@@ -126,8 +126,30 @@ Configuration file is in YAML format and supports following elements:
 ===================
 
 Sample service definition for ``systemd`` is provided under
-`systemd/ <https://github.com/hostcc/energomera-hass-mqtt/tree/main/systemd>`_
+`systemd/ <https://github.com/hostcc/energomera-hass-mqtt/tree/master/systemd>`_
 directory.
+
+Docker support
+==============
+
+There are Docker images available if you would like to run it as Docker container - you could use 
+``ghcr.io/hostcc/energomera-hass-mqtt:latest`` or
+``ghcr.io/hostcc/energomera-hass-mqtt:<release version>``.
+
+As of writing, the images are built to ARM v6/v7 and ARM64 platforms.
+
+To run the program as container you will need to create a directory on the host
+and put ``config.yaml`` relevant to your setup there.
+
+Then, assuming the directory is called ``config`` and resides relative to
+current directory, and the serial port the meter is connected to is
+``/dev/ttyUSB0`` the following command will run it
+
+.. code:: 
+
+  $ docker run --device /dev/ttyUSB0 -v `pwd`/config:/etc/energomera/ \
+    ghcr.io/hostcc/energomera-hass-mqtt:latest
+
 
 Documentation
 =============
