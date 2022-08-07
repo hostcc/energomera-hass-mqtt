@@ -981,7 +981,7 @@ def run_main():
 
 @freeze_time("2022-05-01")
 # Mock the calls we interested in
-@patch.object(asyncio_mqtt.client.Client, 'publish')
+@patch.object(asyncio_mqtt.client.Client, 'publish', new_callable=AsyncMock)
 @patch.object(iec62056_21.transports.SerialTransport, '_send')
 @patch.object(iec62056_21.transports.SerialTransport, '_recv')
 # Mock certain methods of 'iec62056_21' package (serial communications) and
@@ -1080,7 +1080,7 @@ def test_mqtt_publish(mqtt_call, mqtt_expected):
     assert mqtt_call == mqtt_expected
 
 
-@patch.object(asyncio_mqtt.client.Client, 'publish')
+@patch.object(asyncio_mqtt.client.Client, 'publish', new_callable=AsyncMock)
 @patch.object(asyncio_mqtt.client.Client, 'connect', new_callable=AsyncMock)
 @patch.object(iec62056_21.transports.SerialTransport, '_recv')
 @patch.object(iec62056_21.transports.SerialTransport, '_send')
