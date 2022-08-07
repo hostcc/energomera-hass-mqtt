@@ -200,7 +200,7 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
             value_template='{{ value_json.value }}',
         )
 
-    def hass_state_payload(self, value):
+    def hass_state_payload(self, value):  # pylint: disable=no-self-use
         """
         Returns HASS state payload for the item.
 
@@ -332,7 +332,7 @@ class IecToHassBinarySensor(IecToHassSensor):
             value_template='{{ value_json.value }}',
         )
 
-    def hass_state_payload(self, value):
+    def hass_state_payload(self, value):  # pylint: disable=no-self-use
         """
         Transforms the binary sensor payload to the format understood by HASS
         MQTT discovery for the sensor type.
