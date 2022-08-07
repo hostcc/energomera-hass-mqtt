@@ -57,6 +57,7 @@ def test_valid_config_file():
         'meter': {
             'port': 'dummy_serial',
             'password': 'dummy_password',
+            'timeout': 30,
         },
         'mqtt': {
             'host': 'a_mqtt_host',
