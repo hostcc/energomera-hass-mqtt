@@ -349,7 +349,7 @@ class IecToHassBinarySensor(IecToHassSensor):
             )
 
         return dict(
-            value='on' if b_value else 'off'
+            value='ON' if b_value else 'OFF'
         )
 
 
@@ -532,7 +532,7 @@ class EnergomeraHassMqtt:
         param = Dict(
             address='IS_ONLINE',
             name='Meter online status',
-            device_class='power',
+            device_class='connectivity',
             additional_data=None,
             response_idx=None,
             entity_name=None,

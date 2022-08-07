@@ -839,7 +839,7 @@ mqtt_publish_calls = [
                     'model': 'CE301',
                     'sw_version': '12',
                 },
-                'device_class': 'power',
+                'device_class': 'connectivity',
                 'unique_id': 'CE301_00123456_IS_ONLINE',
                 'state_topic': 'homeassistant/binary_sensor/CE301_00123456'
                                '/CE301_00123456_IS_ONLINE'
@@ -852,11 +852,11 @@ mqtt_publish_calls = [
     call(
         topic='homeassistant/binary_sensor/CE301_00123456'
         '/CE301_00123456_IS_ONLINE/state',
-        payload=json.dumps({'value': 'on'}),
+        payload=json.dumps({'value': 'ON'}),
         will=dict(
             topic='homeassistant/binary_sensor/CE301_00123456'
             '/CE301_00123456_IS_ONLINE/state',
-            payload=json.dumps({'value': 'off'}),
+            payload=json.dumps({'value': 'OFF'}),
         ),
     ),
 ]
@@ -1105,10 +1105,10 @@ def test_online_sensor():
     assert call(
         topic='homeassistant/binary_sensor/CE301_00123456'
         '/CE301_00123456_IS_ONLINE/state',
-        payload=json.dumps({'value': 'off'}),
+        payload=json.dumps({'value': 'OFF'}),
         will=dict(
             topic='homeassistant/binary_sensor/CE301_00123456'
             '/CE301_00123456_IS_ONLINE/state',
-            payload=json.dumps({'value': 'off'}),
+            payload=json.dumps({'value': 'OFF'}),
         ),
     ) in mqtt_publish_call_args_for_timeout
