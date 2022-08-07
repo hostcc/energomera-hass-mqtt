@@ -24,6 +24,12 @@ Tests for 'energomera_hass_mqtt' package
 '''
 import sys
 import json
+try:
+    from unittest.mock import AsyncMock
+except ImportError:
+    # AsyncMock introduced in Python 3.8, import from alternative package if
+    # older
+    from mock import AsyncMock
 from unittest.mock import call, patch, mock_open
 from functools import reduce
 from freezegun import freeze_time
@@ -983,7 +989,7 @@ def run_main():
 @patch.object(iec62056_21.transports.SerialTransport, 'switch_baudrate')
 @patch.object(iec62056_21.transports.SerialTransport, 'disconnect')
 @patch.object(iec62056_21.transports.SerialTransport, 'connect')
-@patch.object(asyncio_mqtt.client.Client, 'connect')
+@patch.object(asyncio_mqtt.client.Client, 'connect', new_callable=AsyncMock)
 def run_main_with_mocks(
     _mqtt_connect_mock, _serial_connect_mock, _serial_disconnect_mock,
     _serial_switch_baudrate_mock,
@@ -1075,7 +1081,7 @@ def test_mqtt_publish(mqtt_call, mqtt_expected):
 
 
 @patch.object(asyncio_mqtt.client.Client, 'publish')
-@patch.object(asyncio_mqtt.client.Client, 'connect')
+@patch.object(asyncio_mqtt.client.Client, 'connect', new_callable=AsyncMock)
 @patch.object(iec62056_21.transports.SerialTransport, '_recv')
 @patch.object(iec62056_21.transports.SerialTransport, '_send')
 @patch.object(iec62056_21.transports.SerialTransport, 'connect')
