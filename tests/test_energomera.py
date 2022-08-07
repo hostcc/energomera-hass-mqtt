@@ -1039,7 +1039,7 @@ def generate_mqtt_tests(call_args):
     ids = []
     for (exp, arg) in zip(mqtt_publish_calls, call_args):
         values.append((arg, exp))
-        ids.append(exp.kwargs.get('topic', str(exp)))
+        ids.append(str(exp.kwargs.get('topic', exp)))
 
     return {'argvalues': values, 'ids': ids}
 
