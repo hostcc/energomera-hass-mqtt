@@ -32,6 +32,9 @@ DEFAULT_CONFIG = Dict(
         intercycle_delay=30,
         logging_level='error',
     ),
+    meter=dict(
+        timeout=30,
+    ),
     parameters=[
         dict(address='ET0PE',
              name='Cumulative energy',

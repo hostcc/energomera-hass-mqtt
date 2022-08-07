@@ -76,6 +76,8 @@ Configuration file is in YAML format and supports following elements:
             # (string) Password to meter for administrative session, manufacturer's
             #  default is '777777'
             password:
+            # (number) default ``30``: Timeout for meter communications
+            timeout:
         # MQTT parameters
         mqtt:
             # (string) Hostname or IP address of MQTT broker
