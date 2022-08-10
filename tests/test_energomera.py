@@ -34,8 +34,8 @@ from unittest.mock import call, patch, mock_open
 from functools import reduce
 from freezegun import freeze_time
 import pytest
-import asyncio_mqtt.client
 import iec62056_21.transports
+from energomera_hass_mqtt.mqtt_client import MqttClient
 from energomera_hass_mqtt import main
 
 # Serial exchange to simulate - `send_bytes` will be simulated as if received
@@ -853,11 +853,6 @@ mqtt_publish_calls = [
         topic='homeassistant/binary_sensor/CE301_00123456'
         '/CE301_00123456_IS_ONLINE/state',
         payload=json.dumps({'value': 'ON'}),
-        will=dict(
-            topic='homeassistant/binary_sensor/CE301_00123456'
-            '/CE301_00123456_IS_ONLINE/state',
-            payload=json.dumps({'value': 'OFF'}),
-        ),
     ),
 ]
 
@@ -981,7 +976,8 @@ def run_main():
 
 @freeze_time("2022-05-01")
 # Mock the calls we interested in
-@patch.object(asyncio_mqtt.client.Client, 'publish', new_callable=AsyncMock)
+@patch.object(MqttClient, 'will_set')
+@patch.object(MqttClient, 'publish', new_callable=AsyncMock)
 @patch.object(iec62056_21.transports.SerialTransport, '_send')
 @patch.object(iec62056_21.transports.SerialTransport, '_recv')
 # Mock certain methods of 'iec62056_21' package (serial communications) and
@@ -989,12 +985,12 @@ def run_main():
 @patch.object(iec62056_21.transports.SerialTransport, 'switch_baudrate')
 @patch.object(iec62056_21.transports.SerialTransport, 'disconnect')
 @patch.object(iec62056_21.transports.SerialTransport, 'connect')
-@patch.object(asyncio_mqtt.client.Client, 'connect', new_callable=AsyncMock)
+@patch.object(MqttClient, 'connect', new_callable=AsyncMock)
 def run_main_with_mocks(
     _mqtt_connect_mock, _serial_connect_mock, _serial_disconnect_mock,
     _serial_switch_baudrate_mock,
     serial_recv_mock, serial_send_mock, mqtt_publish_mock,
-    simulate_timeout=False
+    mqtt_will_set_mock, simulate_timeout=False
 ):
     '''
     Execute the main flow interacting with the device and MQTT.
@@ -1023,10 +1019,11 @@ def run_main_with_mocks(
 
     run_main()
     # Resulting calls sending data over serial and doing MQTT publishes
-    return mqtt_publish_mock.call_args_list, serial_send_mock.call_args_list
+    return (mqtt_publish_mock.call_args_list, serial_send_mock.call_args_list,
+            mqtt_will_set_mock.call_args_list)
 
 
-(mqtt_publish_call_args, serial_send_call_args) = run_main_with_mocks()
+(mqtt_publish_call_args, serial_send_call_args, _) = run_main_with_mocks()
 
 
 def generate_mqtt_tests(call_args):
@@ -1080,8 +1077,8 @@ def test_mqtt_publish(mqtt_call, mqtt_expected):
     assert mqtt_call == mqtt_expected
 
 
-@patch.object(asyncio_mqtt.client.Client, 'publish', new_callable=AsyncMock)
-@patch.object(asyncio_mqtt.client.Client, 'connect', new_callable=AsyncMock)
+@patch.object(MqttClient, 'publish', new_callable=AsyncMock)
+@patch.object(MqttClient, 'connect', new_callable=AsyncMock)
 @patch.object(iec62056_21.transports.SerialTransport, '_recv')
 @patch.object(iec62056_21.transports.SerialTransport, '_send')
 @patch.object(iec62056_21.transports.SerialTransport, 'connect')
@@ -1098,7 +1095,8 @@ def test_online_sensor():
     '''
     Tests for handling pseudo online sensor under timeout condition.
     '''
-    (mqtt_publish_call_args_for_timeout, _) = run_main_with_mocks(
+    (mqtt_publish_call_args_for_timeout, _,
+     mqtt_will_set_call_args) = run_main_with_mocks(
         simulate_timeout=True
     )
 
@@ -1106,9 +1104,10 @@ def test_online_sensor():
         topic='homeassistant/binary_sensor/CE301_00123456'
         '/CE301_00123456_IS_ONLINE/state',
         payload=json.dumps({'value': 'OFF'}),
-        will=dict(
-            topic='homeassistant/binary_sensor/CE301_00123456'
-            '/CE301_00123456_IS_ONLINE/state',
-            payload=json.dumps({'value': 'OFF'}),
-        ),
     ) in mqtt_publish_call_args_for_timeout
+
+    assert call(
+        topic='homeassistant/binary_sensor/CE301_00123456'
+        '/CE301_00123456_IS_ONLINE/state',
+        payload=json.dumps({'value': 'OFF'}),
+    ) in mqtt_will_set_call_args

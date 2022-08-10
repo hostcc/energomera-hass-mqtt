@@ -31,9 +31,9 @@ from iec62056_21.messages import CommandMessage
 from iec62056_21.client import Iec6205621Client
 from iec62056_21.transports import SerialTransport
 from iec62056_21 import utils
-import asyncio_mqtt
 from addict import Dict
 from .config import EnergomeraConfig, EnergomeraConfigError  # noqa:F401
+from .mqtt_client import MqttClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -230,6 +230,23 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
                 _LOGGER.debug("Using '%s' as HASS name for IEC enttity"
                               " at '%s' address",
                               self._hass_item_name, self._config_param.address)
+                # Set last will for MQTT if specified for the item
+                if self._state_last_will_payload is not None:
+                    will_payload = self.hass_state_payload(
+                        value=self._state_last_will_payload
+                    )
+                    json_will_payload = json.dumps(will_payload)
+
+                    self._mqtt_client.will_set(
+                        topic=self._hass_state_topic,
+                        payload=json_will_payload
+                    )
+
+                    _LOGGER.debug(
+                        "Set HASS state topic for MQTT last will,"
+                        " payload: '%s'",
+                        json_will_payload
+                    )
 
                 # Send payloads using MQTT
                 async with self._mqtt_client as client:
@@ -268,31 +285,11 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
                                   " '%s'",
                                   json_state_payload)
 
-                    # Sensor state payload
-                    state_kwargs = dict(
-                        topic=self._hass_state_topic,
-                        payload=json_state_payload,
-                    )
-
-                    # Set last will for MQTT if specified for the item
-                    if self._state_last_will_payload is not None:
-                        will_payload = self.hass_state_payload(
-                            value=self._state_last_will_payload
-                        )
-                        json_will_payload = json.dumps(will_payload)
-
-                        state_kwargs['will'] = dict(
-                            topic=self._hass_state_topic,
-                            payload=json_will_payload,
-                        )
-                        _LOGGER.debug(
-                            "Set HASS state topic for MQTT last will,"
-                            " payload: '%s'",
-                            json_will_payload
-                        )
-
                     # Send sensor state
-                    await client.publish(**state_kwargs)
+                    await client.publish(
+                        topic=self._hass_state_topic,
+                        payload=json_state_payload
+                    )
                     _LOGGER.debug("Sent HASS state payload to MQTT topic '%s'",
                                   self._hass_state_topic)
 
@@ -433,7 +430,7 @@ class EnergomeraHassMqtt:
             )
         )
 
-        self._mqtt_client = asyncio_mqtt.Client(
+        self._mqtt_client = MqttClient(
             hostname=config.of.mqtt.host, username=config.of.mqtt.user,
             password=config.of.mqtt.password, tls_context=mqtt_tls_context
         )
