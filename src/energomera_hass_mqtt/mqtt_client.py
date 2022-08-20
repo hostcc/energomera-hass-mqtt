@@ -29,6 +29,12 @@ _LOGGER = logging.getLogger(__name__)
 
 class MqttClient(asyncio_mqtt.Client):
     """
+    Class attribute allowing to provide MQTT keepalive down to MQTT client.
+    Used only by tests at the moment, thus no interface controlling the
+    attribute is provided.
+    """
+    _keepalive = None
+    """
     The class extends the `asyncio_mqtt.Client` to provide better convenience
     working with last wills. Namely, the original class only allows setting the
     last will thru its constructor, while the `EnergomeraHassMqtt` consuming it
@@ -39,6 +45,9 @@ class MqttClient(asyncio_mqtt.Client):
     """
     def __init__(self, *args, **kwargs):
         self._will_set = 'will' in kwargs
+        # Pass keepalive option down to parent class if set
+        if self._keepalive:
+            kwargs['keepalive'] = self._keepalive
         super().__init__(logger=_LOGGER, *args, **kwargs)
 
     def will_set(self, *args, **kwargs):
