@@ -107,13 +107,15 @@ class EnergomeraConfig:
             'meter': {
                 'port': str,
                 'password': str,
+                Optional('timeout', default=DEFAULT_CONFIG.meter.timeout): int,
             },
             'mqtt': {
                 'host': str,
-                Optional('user'): str,
-                Optional('password'): str,
+                Optional('user', default=None): str,
+                Optional('password', default=None): str,
                 Optional('hass_discovery_prefix',
                          default='homeassistant'): str,
+                Optional('tls', default=True): bool,
             },
             Optional('parameters', default=DEFAULT_CONFIG.parameters): [
                 Schema({

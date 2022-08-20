@@ -12,3 +12,13 @@ pythonpath = [
 ]
 log_cli = 1
 log_cli_level = "error"
+
+[tool.pylint.main]
+load-plugins = "pylint.extensions.no_self_use"
+
+[tool.pylint.typecheck]
+signature-mutators = [
+	# Ignore mutations (number of function arguments) introduced by
+	# `patch.object` decorator of `unittest.mock`
+	"unittest.mock._patch_object"
+]

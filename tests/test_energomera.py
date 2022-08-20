@@ -24,19 +24,19 @@ Tests for 'energomera_hass_mqtt' package
 '''
 import sys
 import json
-from unittest.mock import call, MagicMock, patch, mock_open
-from freezegun import freeze_time
 try:
     from unittest.mock import AsyncMock
 except ImportError:
     # AsyncMock introduced in Python 3.8, import from alternative package if
     # older
     from mock import AsyncMock
+from unittest.mock import call, patch, mock_open, DEFAULT
+from contextlib import contextmanager
 from functools import reduce
 import pytest
-import asyncio_mqtt.client
 import iec62056_21.transports
-from energomera_hass_mqtt import main
+from energomera_hass_mqtt.mqtt_client import MqttClient
+from energomera_hass_mqtt.main import main
 
 # Serial exchange to simulate - `send_bytes` will be simulated as if received
 # from the device, `receive_bytes` is what expected to be sent by the package.
@@ -184,7 +184,8 @@ serial_exchange = [
 # serial exchange above
 mqtt_publish_calls = [
     call(
-        'homeassistant/sensor/CE301_00123456/CE301_00123456_ET0PE/config',
+        topic='homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_ET0PE/config',
         payload=json.dumps(
             {
                 'name': 'Cumulative energy',
@@ -206,11 +207,12 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456/CE301_00123456_ET0PE/state',
+        topic='homeassistant/sensor/CE301_00123456/CE301_00123456_ET0PE/state',
         payload=json.dumps({'value': '16907.9477764'}),
     ),
     call(
-        'homeassistant/sensor/CE301_00123456/CE301_00123456_ECMPE/config',
+        topic='homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_ECMPE/config',
         payload=json.dumps(
             {
                 'name': 'Monthly energy',
@@ -232,11 +234,11 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456/CE301_00123456_ECMPE/state',
+        topic='homeassistant/sensor/CE301_00123456/CE301_00123456_ECMPE/state',
         payload=json.dumps({'value': '357.8505119'}),
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_ENMPE_PREV_MONTH/config',
         payload=json.dumps(
             {
@@ -259,12 +261,12 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_ENMPE_PREV_MONTH/state',
         payload=json.dumps({'value': '16550.0972645'}),
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_ECMPE_PREV_MONTH/config',
         payload=json.dumps(
             {
@@ -287,12 +289,13 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_ECMPE_PREV_MONTH/state',
         payload=json.dumps({'value': '477.8955487'}),
     ),
     call(
-        'homeassistant/sensor/CE301_00123456/CE301_00123456_ECDPE/config',
+        topic='homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_ECDPE/config',
         payload=json.dumps(
             {
                 'name': 'Daily energy',
@@ -314,11 +317,11 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456/CE301_00123456_ECDPE/state',
+        topic='homeassistant/sensor/CE301_00123456/CE301_00123456_ECDPE/state',
         payload=json.dumps({'value': '13.7433546'}),
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_POWPP_0/config',
         payload=json.dumps(
             {
@@ -341,11 +344,12 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456/CE301_00123456_POWPP_0/state',
+        topic='homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_POWPP_0/state',
         payload=json.dumps({'value': '0.0592'}),
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_POWPP_1/config',
         payload=json.dumps(
             {
@@ -368,11 +372,12 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456/CE301_00123456_POWPP_1/state',
+        topic='homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_POWPP_1/state',
         payload=json.dumps({'value': '0.4402'}),
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_POWPP_2/config',
         payload=json.dumps(
             {
@@ -395,11 +400,13 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456/CE301_00123456_POWPP_2/state',
+        topic='homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_POWPP_2/state',
         payload=json.dumps({'value': '0.054'}),
     ),
     call(
-        'homeassistant/sensor/CE301_00123456/CE301_00123456_POWEP/config',
+        topic='homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_POWEP/config',
         payload=json.dumps(
             {
                 'name': 'Active energy',
@@ -421,11 +428,11 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456/CE301_00123456_POWEP/state',
+        topic='homeassistant/sensor/CE301_00123456/CE301_00123456_POWEP/state',
         payload=json.dumps({'value': '0.5266'}),
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_VOLTA_0/config',
         payload=json.dumps(
             {
@@ -448,11 +455,12 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456/CE301_00123456_VOLTA_0/state',
+        topic='homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_VOLTA_0/state',
         payload=json.dumps({'value': '233.751'}),
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_VOLTA_1/config',
         payload=json.dumps(
             {
@@ -475,11 +483,12 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456/CE301_00123456_VOLTA_1/state',
+        topic='homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_VOLTA_1/state',
         payload=json.dumps({'value': '235.418'}),
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_VOLTA_2/config',
         payload=json.dumps(
             {
@@ -502,11 +511,13 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456/CE301_00123456_VOLTA_2/state',
+        topic='homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_VOLTA_2/state',
         payload=json.dumps({'value': '234.796'}),
     ),
     call(
-        'homeassistant/sensor/CE301_00123456/CE301_00123456_VNULL/config',
+        topic='homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_VNULL/config',
         payload=json.dumps(
             {
                 'name': 'Neutral voltage',
@@ -528,11 +539,11 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456/CE301_00123456_VNULL/state',
+        topic='homeassistant/sensor/CE301_00123456/CE301_00123456_VNULL/state',
         payload=json.dumps({'value': '0'}),
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_CURRE_0/config',
         payload=json.dumps(
             {
@@ -555,11 +566,12 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456/CE301_00123456_CURRE_0/state',
+        topic='homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_CURRE_0/state',
         payload=json.dumps({'value': '1.479'}),
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_CURRE_1/config',
         payload=json.dumps(
             {
@@ -582,11 +594,12 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456/CE301_00123456_CURRE_1/state',
+        topic='homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_CURRE_1/state',
         payload=json.dumps({'value': '2.8716'}),
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_CURRE_2/config',
         payload=json.dumps(
             {
@@ -609,11 +622,13 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456/CE301_00123456_CURRE_2/state',
+        topic='homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_CURRE_2/state',
         payload=json.dumps({'value': '0.782'}),
     ),
     call(
-        'homeassistant/sensor/CE301_00123456/CE301_00123456_FREQU/config',
+        topic='homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_FREQU/config',
         payload=json.dumps(
             {
                 'name': 'Frequency',
@@ -635,12 +650,13 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456/CE301_00123456_FREQU/state',
+        topic='homeassistant/sensor/CE301_00123456'
+        '/CE301_00123456_FREQU/state',
         payload=json.dumps({'value': '49.96'}),
     ),
     # MQTT calls for HASS entry with auto-indexed name
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_CURRE_INDEXED_0/config',
         payload=json.dumps(
             {
@@ -663,12 +679,12 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_CURRE_INDEXED_0/state',
         payload=json.dumps({'value': '1.479'}),
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_CURRE_INDEXED_1/config',
         payload=json.dumps(
             {
@@ -691,12 +707,12 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_CURRE_INDEXED_1/state',
         payload=json.dumps({'value': '2.8716'}),
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_CURRE_INDEXED_2/config',
         payload=json.dumps(
             {
@@ -719,13 +735,13 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_CURRE_INDEXED_2/state',
         payload=json.dumps({'value': '0.782'}),
     ),
     # MQTT calls for HASS entry with fallback names
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_CURRE_INDEXED_FALLBACK_0/config',
         payload=json.dumps(
             {
@@ -749,12 +765,12 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_CURRE_INDEXED_FALLBACK_0/state',
         payload=json.dumps({'value': '1.479'}),
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_CURRE_INDEXED_FALLBACK_1/config',
         payload=json.dumps(
             {
@@ -778,12 +794,12 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_CURRE_INDEXED_FALLBACK_1/state',
         payload=json.dumps({'value': '2.8716'}),
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_CURRE_INDEXED_FALLBACK_2/config',
         payload=json.dumps(
             {
@@ -807,55 +823,61 @@ mqtt_publish_calls = [
         retain=True,
     ),
     call(
-        'homeassistant/sensor/CE301_00123456'
+        topic='homeassistant/sensor/CE301_00123456'
         '/CE301_00123456_CURRE_INDEXED_FALLBACK_2/state',
         payload=json.dumps({'value': '0.782'}),
+    ),
+    call(
+        topic='homeassistant/binary_sensor/CE301_00123456'
+        '/CE301_00123456_IS_ONLINE/config',
+        payload=json.dumps(
+            {
+                'name': 'Meter online status',
+                'device': {
+                    'name': '00123456',
+                    'ids': 'CE301_00123456',
+                    'model': 'CE301',
+                    'sw_version': '12',
+                },
+                'device_class': 'connectivity',
+                'unique_id': 'CE301_00123456_IS_ONLINE',
+                'state_topic': 'homeassistant/binary_sensor/CE301_00123456'
+                               '/CE301_00123456_IS_ONLINE'
+                               '/state',
+                'value_template': '{{ value_json.value }}',
+            }
+        ),
+        retain=True,
+    ),
+    call(
+        topic='homeassistant/binary_sensor/CE301_00123456'
+        '/CE301_00123456_IS_ONLINE/state',
+        payload=json.dumps({'value': 'ON'}),
     ),
 ]
 
 
-@freeze_time("2022-05-01")
-def run_main():
+@contextmanager
+def mock_config():
     '''
-    Execute the main flow interacting with the device and MQTT.
+    Provides mocked configuration file, to be used as context manager.
     '''
 
-    # Mock certain methods of 'iec62056_21' package (serial communications) and
-    # 'asyncio_mqtt' (MQTT) to prevent serial/networking calls
-    asyncio_mqtt.client.Client.connect = AsyncMock()
-    iec62056_21.transports.SerialTransport.switch_baudrate = MagicMock()
-    iec62056_21.transports.SerialTransport.connect = MagicMock()
-    iec62056_21.transports.SerialTransport.disconnect = MagicMock()
-
-    # Mock the calls we interested in
-    publish_mock = asyncio_mqtt.client.Client.publish = AsyncMock()
-    recv_mock = iec62056_21.transports.SerialTransport._recv = MagicMock()
-    send_mock = iec62056_21.transports.SerialTransport._send = MagicMock()
-
-    # Simulate data received from serial port.
-    recv_mock.side_effect = [
-        # Accessing `bytes` by subscription or via iterator (what `side_effect`
-        # internally does for iterable) will result in integer, so to retain
-        # the type the nested arrays each containing single `bytes` is used
-        bytes([y]) for y in
-        # Produces array of bytes of all serial exchange fragments
-        reduce(
-            lambda x, y: x + y,
-            [x['send_bytes'] for x in serial_exchange]
-        )
-    ]
-
-    # Instantiate the client
     config_yaml = '''
         general:
             oneshot: true
         meter:
           port: dummy_serial
           password: dummy
+          timeout: 1
         mqtt:
-          host: mqtt_dummy_host
+          # This is important as Docker-backed tests spawn the broker exposed
+          # on the localhost
+          host: 127.0.0.1
           user: mqtt_dummy_user
           password: mqtt_dummy_password
+          # Leveraged by Docker-based tests since the broker is TLS-unaware
+          tls: false
         parameters:
             - address: ET0PE
               device_class: energy
@@ -869,7 +891,7 @@ def run_main():
               response_idx: 0
               state_class: total
               unit: kWh
-            - additional_data: '{{ energomera_prev_month }}'
+            - additional_data: '04.22'
               address: ENMPE
               device_class: energy
               entity_name: ENMPE_PREV_MONTH
@@ -877,7 +899,7 @@ def run_main():
               response_idx: 0
               state_class: total_increasing
               unit: kWh
-            - additional_data: '{{ energomera_prev_month }}'
+            - additional_data: '04.22'
               address: EAMPE
               device_class: energy
               entity_name: ECMPE_PREV_MONTH
@@ -954,13 +976,87 @@ def run_main():
     # Perform communication with the device and issue MQTT calls
     with patch('builtins.open', mock_open(read_data=config_yaml)):
         with patch.object(sys, 'argv', ['dummy']):
-            main.main()
-
-    # Resulting calls sending data over serial and doing MQTT publishes
-    return publish_mock.call_args_list, send_mock.call_args_list
+            yield
 
 
-(mqtt_publish_call_args, serial_send_call_args) = run_main()
+@contextmanager
+def mock_serial(
+    simulate_timeout=False
+):
+    '''
+    Provides necessary serial mocks, to be used as context manager.
+    '''
+
+    # Mock certain methods of 'iec62056_21' package (serial communications) to
+    # prevent serial calls
+    with patch.multiple(iec62056_21.transports.SerialTransport,
+                        switch_baudrate=DEFAULT, disconnect=DEFAULT,
+                        connect=DEFAULT):
+        # Mock the calls we interested in
+        with patch.multiple(iec62056_21.transports.SerialTransport,
+                            _send=DEFAULT, _recv=DEFAULT) as mocks:
+            # Simulate data received from serial port.
+            mocked_serial_exchange = [
+                # Accessing `bytes` by subscription or via iterator (what
+                # `side_effect` internally does for iterable) will result in
+                # integer, so to retain the type the nested arrays each
+                # containing single `bytes` is used
+                bytes([y]) for y in
+                # Produces array of bytes of all serial exchange fragments
+                reduce(
+                    lambda x, y: x + y,
+                    [x['send_bytes'] for x in serial_exchange]
+                )
+            ]
+
+            if simulate_timeout:
+                # Simulate timeout occured at the end of mocked serial
+                # exchange. Some initial packets are needed to grab meter
+                # identification so we can test online sensor (it depends on
+                # those)
+                mocked_serial_exchange[-1] = TimeoutError
+
+            mocks['_recv'].side_effect = mocked_serial_exchange
+
+            yield mocks
+
+
+@contextmanager
+def mock_mqtt():
+    '''
+    Provides necessary MQTT mocks, to be used as context manager.
+    '''
+    # Mock the calls we interested in
+    with patch.multiple(MqttClient,
+                        publish=DEFAULT, connect=DEFAULT,
+                        new_callable=AsyncMock) as mocks:
+        yield mocks
+
+
+serial_send_call_args = []
+mqtt_publish_call_args = []
+
+
+def generate_call_lists():
+    '''
+    Generates MQTT and serial call lists out of `main` function being executed
+    with relevant calls mocked.
+    '''
+    with mock_serial() as serial_mocks:
+        with mock_mqtt() as mqtt_mocks:
+            with mock_config():
+                main()
+                mqtt_call_args = mqtt_mocks['publish'].call_args_list
+                serial_call_args = serial_mocks['_send'].call_args_list
+
+    return mqtt_call_args, serial_call_args
+
+
+# Execute the `main` function generating call lists only when the module is
+# invoked by `pytest`, but not when being imported (to avoid excessive `main`
+# execution)
+if __name__ == 'test_energomera':
+    mqtt_publish_call_args, serial_send_call_args = generate_call_lists()
 
 
 def generate_mqtt_tests(call_args):
@@ -973,7 +1069,7 @@ def generate_mqtt_tests(call_args):
     ids = []
     for (exp, arg) in zip(mqtt_publish_calls, call_args):
         values.append((arg, exp))
-        ids.append(exp.args[0])
+        ids.append(str(exp.kwargs.get('topic', exp)))
 
     return {'argvalues': values, 'ids': ids}
 
@@ -1012,3 +1108,15 @@ def test_mqtt_publish(mqtt_call, mqtt_expected):
     Tests the data published to MQTT.
     '''
     assert mqtt_call == mqtt_expected
+
+
+def test_timeout():
+    '''
+    Tests for timeout handling.
+    '''
+
+    with mock_serial(simulate_timeout=True) as serial_mocks:
+        with mock_mqtt():
+            with mock_config():
+                serial_mocks['_recv'].return_value = None
+                main()

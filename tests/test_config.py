@@ -57,12 +57,14 @@ def test_valid_config_file():
         'meter': {
             'port': 'dummy_serial',
             'password': 'dummy_password',
+            'timeout': 30,
         },
         'mqtt': {
             'host': 'a_mqtt_host',
             'user': 'a_mqtt_user',
             'password': 'mqtt_dummy_password',
             'hass_discovery_prefix': 'homeassistant',
+            'tls': True,
         },
         'parameters': [
             {

@@ -59,8 +59,8 @@ async def async_main():
         try:
             await client.iec_read_admin()
         except Exception as exc:  # pylint: disable=broad-except
-            print('Got exception while processing, skipping to next cycle.'
-                  f' Details: {repr(exc)}')
+            logging.error('Got exception while processing,'
+                          ' skipping to next cycle: %s', exc, exc_info=True)
         if config.of.general.oneshot:
             break
         await asyncio.sleep(config.of.general.intercycle_delay)
