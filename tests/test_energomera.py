@@ -30,13 +30,13 @@ except ImportError:
     # AsyncMock introduced in Python 3.8, import from alternative package if
     # older
     from mock import AsyncMock
-from unittest.mock import call, patch, mock_open
+from unittest.mock import call, patch, mock_open, DEFAULT
+from contextlib import contextmanager
 from functools import reduce
-from freezegun import freeze_time
 import pytest
 import iec62056_21.transports
 from energomera_hass_mqtt.mqtt_client import MqttClient
-from energomera_hass_mqtt import main
+from energomera_hass_mqtt.main import main
 
 # Serial exchange to simulate - `send_bytes` will be simulated as if received
 # from the device, `receive_bytes` is what expected to be sent by the package.
@@ -857,9 +857,10 @@ mqtt_publish_calls = [
 ]
 
 
-def run_main():
+@contextmanager
+def mock_config():
     '''
-    Executes the meter client with given configuration.
+    Provides mocked configuration file, to be used as context manager.
     '''
 
     config_yaml = '''
@@ -870,9 +871,13 @@ def run_main():
           password: dummy
           timeout: 1
         mqtt:
-          host: mqtt_dummy_host
+          # This is important as Docker-backed tests spawn the broker exposed
+          # on the localhost
+          host: 127.0.0.1
           user: mqtt_dummy_user
           password: mqtt_dummy_password
+          # Leveraged by Docker-based tests since the broker is TLS-unaware
+          tls: false
         parameters:
             - address: ET0PE
               device_class: energy
@@ -886,7 +891,7 @@ def run_main():
               response_idx: 0
               state_class: total
               unit: kWh
-            - additional_data: '{{ energomera_prev_month }}'
+            - additional_data: '04.22'
               address: ENMPE
               device_class: energy
               entity_name: ENMPE_PREV_MONTH
@@ -894,7 +899,7 @@ def run_main():
               response_idx: 0
               state_class: total_increasing
               unit: kWh
-            - additional_data: '{{ energomera_prev_month }}'
+            - additional_data: '04.22'
               address: EAMPE
               device_class: energy
               entity_name: ECMPE_PREV_MONTH
@@ -971,59 +976,87 @@ def run_main():
     # Perform communication with the device and issue MQTT calls
     with patch('builtins.open', mock_open(read_data=config_yaml)):
         with patch.object(sys, 'argv', ['dummy']):
-            return main.main()
+            yield
 
 
-@freeze_time("2022-05-01")
-# Mock the calls we interested in
-@patch.object(MqttClient, 'will_set')
-@patch.object(MqttClient, 'publish', new_callable=AsyncMock)
-@patch.object(iec62056_21.transports.SerialTransport, '_send')
-@patch.object(iec62056_21.transports.SerialTransport, '_recv')
-# Mock certain methods of 'iec62056_21' package (serial communications) and
-# 'asyncio_mqtt' (MQTT) to prevent serial/networking calls
-@patch.object(iec62056_21.transports.SerialTransport, 'switch_baudrate')
-@patch.object(iec62056_21.transports.SerialTransport, 'disconnect')
-@patch.object(iec62056_21.transports.SerialTransport, 'connect')
-@patch.object(MqttClient, 'connect', new_callable=AsyncMock)
-def run_main_with_mocks(
-    _mqtt_connect_mock, _serial_connect_mock, _serial_disconnect_mock,
-    _serial_switch_baudrate_mock,
-    serial_recv_mock, serial_send_mock, mqtt_publish_mock,
-    mqtt_will_set_mock, simulate_timeout=False
+@contextmanager
+def mock_serial(
+    simulate_timeout=False
 ):
     '''
-    Execute the main flow interacting with the device and MQTT.
+    Provides necessary serial mocks, to be used as context manager.
     '''
 
-    # Simulate data received from serial port.
-    mocked_serial_exchange = [
-        # Accessing `bytes` by subscription or via iterator (what `side_effect`
-        # internally does for iterable) will result in integer, so to retain
-        # the type the nested arrays each containing single `bytes` is used
-        bytes([y]) for y in
-        # Produces array of bytes of all serial exchange fragments
-        reduce(
-            lambda x, y: x + y,
-            [x['send_bytes'] for x in serial_exchange]
-        )
-    ]
+    # Mock certain methods of 'iec62056_21' package (serial communications) to
+    # prevent serial calls
+    with patch.multiple(iec62056_21.transports.SerialTransport,
+                        switch_baudrate=DEFAULT, disconnect=DEFAULT,
+                        connect=DEFAULT):
+        # Mock the calls we interested in
+        with patch.multiple(iec62056_21.transports.SerialTransport,
+                            _send=DEFAULT, _recv=DEFAULT) as mocks:
+            # Simulate data received from serial port.
+            mocked_serial_exchange = [
+                # Accessing `bytes` by subscription or via iterator (what
+                # `side_effect` internally does for iterable) will result in
+                # integer, so to retain the type the nested arrays each
+                # containing single `bytes` is used
+                bytes([y]) for y in
+                # Produces array of bytes of all serial exchange fragments
+                reduce(
+                    lambda x, y: x + y,
+                    [x['send_bytes'] for x in serial_exchange]
+                )
+            ]
 
-    if simulate_timeout:
-        # Simulate timeout occured at the end of mocked serial exchange. Some
-        # initial packets are needed to grab meter identification so we can
-        # test online sensor (it depends on those)
-        mocked_serial_exchange[-1] = TimeoutError
+            if simulate_timeout:
+                # Simulate timeout occured at the end of mocked serial
+                # exchange. Some initial packets are needed to grab meter
+                # identification so we can test online sensor (it depends on
+                # those)
+                mocked_serial_exchange[-1] = TimeoutError
 
-    serial_recv_mock.side_effect = mocked_serial_exchange
+            mocks['_recv'].side_effect = mocked_serial_exchange
 
-    run_main()
-    # Resulting calls sending data over serial and doing MQTT publishes
-    return (mqtt_publish_mock.call_args_list, serial_send_mock.call_args_list,
-            mqtt_will_set_mock.call_args_list)
+            yield mocks
 
 
-(mqtt_publish_call_args, serial_send_call_args, _) = run_main_with_mocks()
+@contextmanager
+def mock_mqtt():
+    '''
+    Provides necessary MQTT mocks, to be used as context manager.
+    '''
+    # Mock the calls we interested in
+    with patch.multiple(MqttClient,
+                        publish=DEFAULT, connect=DEFAULT,
+                        new_callable=AsyncMock) as mocks:
+        yield mocks
+
+
+serial_send_call_args = []
+mqtt_publish_call_args = []
+
+
+def generate_call_lists():
+    '''
+    Generates MQTT and serial call lists out of `main` function being executed
+    with relevant calls mocked.
+    '''
+    with mock_serial() as serial_mocks:
+        with mock_mqtt() as mqtt_mocks:
+            with mock_config():
+                main()
+                mqtt_call_args = mqtt_mocks['publish'].call_args_list
+                serial_call_args = serial_mocks['_send'].call_args_list
+
+    return mqtt_call_args, serial_call_args
+
+
+# Execute the `main` function generating call lists only when the module is
+# invoked by `pytest`, but not when being imported (to avoid excessive `main`
+# execution)
+if __name__ == 'test_energomera':
+    mqtt_publish_call_args, serial_send_call_args = generate_call_lists()
 
 
 def generate_mqtt_tests(call_args):
@@ -1077,37 +1110,13 @@ def test_mqtt_publish(mqtt_call, mqtt_expected):
     assert mqtt_call == mqtt_expected
 
 
-@patch.object(MqttClient, 'publish', new_callable=AsyncMock)
-@patch.object(MqttClient, 'connect', new_callable=AsyncMock)
-@patch.object(iec62056_21.transports.SerialTransport, '_recv')
-@patch.object(iec62056_21.transports.SerialTransport, '_send')
-@patch.object(iec62056_21.transports.SerialTransport, 'connect')
-def test_timeout(_serial_connect_mock, _serial_send_mock,
-                 serial_recv_mock, _mqtt_connect_mock, _mqtt_publish_mock):
+def test_timeout():
     '''
     Tests for timeout handling.
     '''
-    serial_recv_mock.return_value = None
-    run_main()
 
-
-def test_online_sensor():
-    '''
-    Tests for handling pseudo online sensor under timeout condition.
-    '''
-    (mqtt_publish_call_args_for_timeout, _,
-     mqtt_will_set_call_args) = run_main_with_mocks(
-        simulate_timeout=True
-    )
-
-    assert call(
-        topic='homeassistant/binary_sensor/CE301_00123456'
-        '/CE301_00123456_IS_ONLINE/state',
-        payload=json.dumps({'value': 'OFF'}),
-    ) in mqtt_publish_call_args_for_timeout
-
-    assert call(
-        topic='homeassistant/binary_sensor/CE301_00123456'
-        '/CE301_00123456_IS_ONLINE/state',
-        payload=json.dumps({'value': 'OFF'}),
-    ) in mqtt_will_set_call_args
+    with mock_serial(simulate_timeout=True) as serial_mocks:
+        with mock_mqtt():
+            with mock_config():
+                serial_mocks['_recv'].return_value = None
+                main()
