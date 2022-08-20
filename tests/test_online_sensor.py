@@ -22,6 +22,7 @@
 Tests for online sensor behavior
 '''
 import os
+import shutil
 import tempfile
 import asyncio
 import time
@@ -29,9 +30,9 @@ import json
 from unittest.mock import patch, call
 import docker
 import pytest
+from test_energomera import mock_serial, mock_mqtt, mock_config
 from energomera_hass_mqtt.mqtt_client import MqttClient
 from energomera_hass_mqtt.main import async_main, main
-from test_energomera import mock_serial, mock_mqtt, mock_config
 
 
 # pylint: disable=too-few-public-methods
@@ -106,28 +107,26 @@ def mqtt_broker():
     ]
     config_str = "\n".join(config)
 
-    with tempfile.TemporaryDirectory(
-        dir=os.getenv('RUNNER_TEMP'),
-        ignore_cleanup_errors=True
-    ) as tmpdir:
-        print(f'Using {tmpdir} as temporary directory')
-        mqtt_config_file = os.path.join(tmpdir, 'mosquitto.conf')
-        with open(mqtt_config_file, 'w', encoding='ascii') as mqtt_config:
-            mqtt_config.write(config_str)
+    tmpdir = tempfile.mkdtemp(dir=os.getenv('RUNNER_TEMP'))
+    print(f'Using {tmpdir} as temporary directory')
+    mqtt_config_file = os.path.join(tmpdir, 'mosquitto.conf')
+    with open(mqtt_config_file, 'w', encoding='ascii') as mqtt_config:
+        mqtt_config.write(config_str)
 
-        container = client.containers.run(
-            'eclipse-mosquitto', detach=True,
-            remove=True,
-            ports={f'{port}/tcp': (None, port)},
-            volumes={tmpdir: {'bind': '/mosquitto/config'}},
-        )
-        # Allow the broker to startup and ready for the clients
-        time.sleep(1)
+    container = client.containers.run(
+        'eclipse-mosquitto', detach=True,
+        remove=True,
+        ports={f'{port}/tcp': (None, port)},
+        volumes={tmpdir: {'bind': '/mosquitto/config'}},
+    )
+    # Allow the broker to startup and ready for the clients
+    time.sleep(1)
 
-        # Pass the execution to the test using the fixture
-        yield
-        # Clean the container up once the test completes
-        container.stop()
+    # Pass the execution to the test using the fixture
+    yield
+    # Clean the container up once the test completes
+    container.stop()
+    shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 @pytest.mark.asyncio
