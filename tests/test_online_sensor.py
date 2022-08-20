@@ -69,8 +69,14 @@ class MqttClientTimedSubscribe(MqttClient):
             Asynchronous generator that sends messages from the queue received
             within configured time interval
             '''
+            try:
+                asyncio_create_task = asyncio.create_task
+            except AttributeError:
+                # Python 3.6 has no `asyncio.create_task`
+                asyncio_create_task = asyncio.ensure_future
+
             while True:
-                task = asyncio.create_task(messages.get())
+                task = asyncio_create_task(messages.get())
                 done, _ = await asyncio.wait(
                     [task], timeout=self._subscribe_timeout
                 )
