@@ -39,20 +39,19 @@ class MqttClient(asyncio_mqtt.Client):
     """
     def __init__(self, *args, **kwargs):
         self._will_set = 'will' in kwargs
-        super().__init__(*args, **kwargs)
+        super().__init__(logger=_LOGGER, *args, **kwargs)
 
     def will_set(self, *args, **kwargs):
         """
         Allows setting last will to the underlying MQTT client.
 
-        Logs error and skips updating the last will if one has already been set
-        (either via the method or through the constructor)
+        Skips updating the last will if one has already been set (either via
+        the method or through the constructor).
 
         :param args: Pass-through positional arguments for parent method
         :param kwargs: Pass-through keyword arguments for parent method
         """
         if self._will_set:
-            _LOGGER.error('Refusing to overwrite last will')
             return
         self._client.will_set(*args, **kwargs)
         self._will_set = True

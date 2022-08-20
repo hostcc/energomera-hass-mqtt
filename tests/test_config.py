@@ -64,6 +64,7 @@ def test_valid_config_file():
             'user': 'a_mqtt_user',
             'password': 'mqtt_dummy_password',
             'hass_discovery_prefix': 'homeassistant',
+            'tls': True,
         },
         'parameters': [
             {

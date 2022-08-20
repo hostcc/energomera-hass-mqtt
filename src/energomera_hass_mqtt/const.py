@@ -35,6 +35,9 @@ DEFAULT_CONFIG = Dict(
     meter=dict(
         timeout=30,
     ),
+    mqtt=dict(
+        tls=True,
+    ),
     parameters=[
         dict(address='ET0PE',
              name='Cumulative energy',

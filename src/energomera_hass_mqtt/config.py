@@ -115,6 +115,7 @@ class EnergomeraConfig:
                 Optional('password', default=None): str,
                 Optional('hass_discovery_prefix',
                          default='homeassistant'): str,
+                Optional('tls', default=True): bool,
             },
             Optional('parameters', default=DEFAULT_CONFIG.parameters): [
                 Schema({

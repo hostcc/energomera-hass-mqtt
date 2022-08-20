@@ -384,8 +384,6 @@ class EnergomeraHassMqtt:
     MQTT.
 
     :param EnergomeraConfig config: Configuration state
-    :param ssl.SSLContext mqtt_tls_context: SSL/TLS context to use while
-      connecting to MQTT broker, necessary if it uses SSL/TLS
     """
 
     @staticmethod
@@ -410,8 +408,6 @@ class EnergomeraHassMqtt:
 
     def __init__(
         self, config,
-        # Required for TLS-enabled MQTT broker
-        mqtt_tls_context=ssl.SSLContext(),
     ):
         self._config = config
         # Override the method in the `iec62056_21` library with the specific
@@ -430,6 +426,12 @@ class EnergomeraHassMqtt:
             )
         )
 
+        mqtt_tls_context = None
+        if config.of.mqtt.tls:
+            _LOGGER.debug('Enabling TLS for MQTT connection')
+            # Required for TLS-enabled MQTT broker
+            mqtt_tls_context=ssl.SSLContext()
+
         self._mqtt_client = MqttClient(
             hostname=config.of.mqtt.host, username=config.of.mqtt.user,
             password=config.of.mqtt.password, tls_context=mqtt_tls_context
@@ -438,7 +440,6 @@ class EnergomeraHassMqtt:
         self._model = None
         self._serial_number = None
         self._sw_version = None
-        self._mqtt_tls_context = mqtt_tls_context
 
     def iec_read_values(self, address, additional_data=None):
         """
