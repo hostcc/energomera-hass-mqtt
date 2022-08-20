@@ -210,10 +210,15 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
             value=value
         )
 
-    async def process(self):
+    async def process(self, setup_only=False):
         """
         Processes the entry received from the meter and sends it to HASS over
         MQTT.
+
+        :param bool setup_only: Perform only setup steps for the entiry, such
+         as determining MQTT topics etc., with no payloads sent to MQTT. Used
+         to configure MQTT last will, since it has to be done prior to
+         connecting to MQTT broker, thus no payloads could be sent yet
         """
         _LOGGER.debug("Processing entry: IEC address '%s',"
                       " additional data '%s', index in response '%s';"
@@ -248,50 +253,54 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
                         json_will_payload
                     )
 
+                # Skip sending MQTT payloads if only setup steps have been
+                # requested
+                if setup_only:
+                    continue
+
                 # Send payloads using MQTT
-                async with self._mqtt_client as client:
-                    # Send config payload for HomeAssistant discovery only once
-                    # per sensor
-                    if (self._hass_unique_id not in
-                            self._hass_config_entities_published):
+                # Send config payload for HomeAssistant discovery only once
+                # per sensor
+                if (self._hass_unique_id not in
+                        self._hass_config_entities_published):
 
-                        # Config payload for sensor discovery
-                        config_payload = self.hass_config_payload()
-                        json_config_payload = json.dumps(config_payload)
-                        _LOGGER.debug("MQTT config payload for HASS"
-                                      " auto-discovery: '%s'",
-                                      json_config_payload)
+                    # Config payload for sensor discovery
+                    config_payload = self.hass_config_payload()
+                    json_config_payload = json.dumps(config_payload)
+                    _LOGGER.debug("MQTT config payload for HASS"
+                                  " auto-discovery: '%s'",
+                                  json_config_payload)
 
-                        await client.publish(
-                            topic=self._hass_config_topic,
-                            payload=json_config_payload,
-                            retain=True,
-                        )
-                        # Mark the config payload for the given sensor as sent
-                        self._hass_config_entities_published[
-                            self._hass_unique_id
-                        ] = True
-
-                        _LOGGER.debug("Sent HASS config payload to MQTT topic"
-                                      " '%s'",
-                                      self._hass_config_topic)
-
-                    # Sensor state payload
-                    state_payload = self.hass_state_payload(
-                        value=iec_value.value
+                    await self._mqtt_client.publish(
+                        topic=self._hass_config_topic,
+                        payload=json_config_payload,
+                        retain=True,
                     )
-                    json_state_payload = json.dumps(state_payload)
-                    _LOGGER.debug("MQTT state payload for HASS auto-discovery:"
+                    # Mark the config payload for the given sensor as sent
+                    self._hass_config_entities_published[
+                        self._hass_unique_id
+                    ] = True
+
+                    _LOGGER.debug("Sent HASS config payload to MQTT topic"
                                   " '%s'",
-                                  json_state_payload)
+                                  self._hass_config_topic)
 
-                    # Send sensor state
-                    await client.publish(
-                        topic=self._hass_state_topic,
-                        payload=json_state_payload
-                    )
-                    _LOGGER.debug("Sent HASS state payload to MQTT topic '%s'",
-                                  self._hass_state_topic)
+                # Sensor state payload
+                state_payload = self.hass_state_payload(
+                    value=iec_value.value
+                )
+                json_state_payload = json.dumps(state_payload)
+                _LOGGER.debug("MQTT state payload for HASS auto-discovery:"
+                              " '%s'",
+                              json_state_payload)
+
+                # Send sensor state
+                await self._mqtt_client.publish(
+                    topic=self._hass_state_topic,
+                    payload=json_state_payload
+                )
+                _LOGGER.debug("Sent HASS state payload to MQTT topic '%s'",
+                              self._hass_state_topic)
 
             # pylint: disable=broad-except
             except Exception as exc:
@@ -430,7 +439,7 @@ class EnergomeraHassMqtt:
         if config.of.mqtt.tls:
             _LOGGER.debug('Enabling TLS for MQTT connection')
             # Required for TLS-enabled MQTT broker
-            mqtt_tls_context=ssl.SSLContext()
+            mqtt_tls_context = ssl.SSLContext()
 
         self._mqtt_client = MqttClient(
             hostname=config.of.mqtt.host, username=config.of.mqtt.user,
@@ -487,6 +496,10 @@ class EnergomeraHassMqtt:
                           " model '%s', SW version '%s', serial number: '%s'",
                           self._model, self._sw_version, self._serial_number)
 
+            # This call will set last will only, which has to be done prior to
+            # connecting to the broker
+            await self.set_online_sensor(False, setup_only=True)
+            await self._mqtt_client.connect()
             # Process parameters requested
             for param in self._config.of.parameters:
                 iec_item = self.iec_read_values(
@@ -506,15 +519,22 @@ class EnergomeraHassMqtt:
             # End the session
             _LOGGER.debug('Closing session with meter')
             self._client.send_break()
-            self._client.disconnect()
 
         except TimeoutError as exc:
             await self.set_online_sensor(False)
             raise exc
         else:
             await self.set_online_sensor(True)
+        finally:
+            # Disconnect both serial and MQTT clients ignoring possible
+            # exceptions - those might have not been connected yet
+            try:
+                self._client.disconnect()
+                await self._mqtt_client.disconnect()
+            except Exception:  # pylint: disable=broad-except
+                pass
 
-    async def set_online_sensor(self, state):
+    async def set_online_sensor(self, state, setup_only=False):
         """
         Adds a pseudo-sensor to HASS reflecting the communication state of
         meter - online or offline.
@@ -544,4 +564,4 @@ class EnergomeraHassMqtt:
         )
         # Set the last will of the MQTT client to the `state=False`
         hass_item.set_state_last_will_payload(value=False)
-        await hass_item.process()
+        await hass_item.process(setup_only)
