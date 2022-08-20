@@ -106,7 +106,7 @@ def mqtt_broker():
     ]
     config_str = "\n".join(config)
 
-    with tempfile.TemporaryDirectory() as tmpdir:
+    with tempfile.TemporaryDirectory(dir=os.getenv('RUNNER_TEMP')) as tmpdir:
         print(f'Using {tmpdir} as temporary directory')
         mqtt_config_file = os.path.join(tmpdir, 'mosquitto.conf')
         with open(mqtt_config_file, 'w', encoding='ascii') as mqtt_config:
