@@ -31,7 +31,7 @@ import docker
 import pytest
 from energomera_hass_mqtt.mqtt_client import MqttClient
 from energomera_hass_mqtt.main import async_main, main
-from tests.test_energomera import mock_serial, mock_mqtt, mock_config
+from test_energomera import mock_serial, mock_mqtt, mock_config
 
 
 # pylint: disable=too-few-public-methods
