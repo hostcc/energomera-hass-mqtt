@@ -443,7 +443,14 @@ class EnergomeraHassMqtt:
 
         self._mqtt_client = MqttClient(
             hostname=config.of.mqtt.host, username=config.of.mqtt.user,
-            password=config.of.mqtt.password, tls_context=mqtt_tls_context
+            password=config.of.mqtt.password, tls_context=mqtt_tls_context,
+            # Set MQTT keepalive to interval between meter interaction cycles,
+            # so that MQTT broker will consider the client disconnected upon
+            # that internal if no MQTT traffic is seen from the client.
+            # Please note the interval could be shorter due to the use of
+            # `asyncio_mqtt`, since its asynchrounous task runs in the loop and
+            # can respond to MQTT pings anytime in between meter cycles.
+            keepalive=config.of.general.intercycle_delay,
         )
         self._hass_discovery_prefix = config.of.mqtt.hass_discovery_prefix
         self._model = None
@@ -499,6 +506,9 @@ class EnergomeraHassMqtt:
             # This call will set last will only, which has to be done prior to
             # connecting to the broker
             await self.set_online_sensor(False, setup_only=True)
+            # The connection to MQTT broker is instantiated only once, if not
+            # connected previously.  See `MqttClient.connect()` for more
+            # details
             await self._mqtt_client.connect()
             # Process parameters requested
             for param in self._config.of.parameters:
@@ -526,13 +536,23 @@ class EnergomeraHassMqtt:
         else:
             await self.set_online_sensor(True)
         finally:
-            # Disconnect both serial and MQTT clients ignoring possible
-            # exceptions - those might have not been connected yet
+            # Disconnect serial client ignoring possible
+            # exceptions - it might have not been connected yet
             try:
                 self._client.disconnect()
-                await self._mqtt_client.disconnect()
             except Exception:  # pylint: disable=broad-except
                 pass
+
+    async def finalize(self):
+        """
+        Performs finalization steps, that is - disconnecting MQTT client
+        currently.
+        """
+        try:
+            await self.set_online_sensor(False)
+            await self._mqtt_client.disconnect()
+        except Exception:  # pylint: disable=broad-except
+            pass
 
     async def set_online_sensor(self, state, setup_only=False):
         """
