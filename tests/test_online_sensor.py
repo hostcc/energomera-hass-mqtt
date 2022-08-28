@@ -90,18 +90,37 @@ class MqttClientTimedSubscribe(MqttClient):
         return _put_in_queue, _generator()
 
 
-@pytest.fixture(scope='session')
-def mqtt_broker():
+@pytest.fixture
+def mqtt_broker(request):  # pylint: disable=too-many-locals
     '''
-    Fixture provisioning MQTT broker in form of Docker container
+    Fixture provisioning MQTT broker in form of Docker container.
+
+    Users/password could be provided with test mark:
+
+    ```
+    @pytest.mark.mqtt_broker_users(
+        'mqtt_user1:mqtt_password1',
+        'mqtt_user2:mqtt_password2',
+        ...
+    )
+    ```
     '''
     client = docker.DockerClient()
 
     port = 1883
+    container_path = '/mosquitto/config'
+    password_file = 'mosquitto.users'
+
+    # Attempt to get MQTT users from test mark
+    users = getattr(
+        request.node.get_closest_marker("mqtt_broker_users"),
+        'args', []
+    )
+
     # Broker configuration file
     config = [
         f'listener {port}',
-        'allow_anonymous true',
+        f'allow_anonymous {"false" if users else "true"}',
         'log_type debug',
         'log_type error',
         'log_type warning',
@@ -109,27 +128,48 @@ def mqtt_broker():
         'log_type information',
         'log_dest stdout',
         'connection_messages true',
-        ''
     ]
-    config_str = "\n".join(config)
 
     tmpdir = tempfile.mkdtemp(dir=os.getenv('RUNNER_TEMP'))
-    print(f'Using {tmpdir} as temporary directory')
+    print(f'Using {tmpdir} as temporary directory for MQTT broker configs')
+
+    if users:
+        # Store provided users and password to plaintext file
+        config.append(f'password_file {container_path}/{password_file}')
+        mqtt_password_file = os.path.join(tmpdir, password_file)
+        with open(mqtt_password_file, 'w', encoding='ascii') as mqtt_password:
+            # The content should have last line ending with LF
+            mqtt_password.write("\n".join(users) + "\n")
+
     mqtt_config_file = os.path.join(tmpdir, 'mosquitto.conf')
     with open(mqtt_config_file, 'w', encoding='ascii') as mqtt_config:
-        mqtt_config.write(config_str)
+        # The content should have last line ending with LF
+        mqtt_config.write("\n".join(config) + "\n")
 
     container = client.containers.run(
         'eclipse-mosquitto', detach=True,
         remove=True,
         ports={f'{port}/tcp': (None, port)},
-        volumes={tmpdir: {'bind': '/mosquitto/config'}},
+        volumes={tmpdir: {'bind': container_path}},
     )
+
+    if users:
+        # Issue command to convert the password file from cleartext to hashed
+        # version compatible with MQTT broker, and then signal it to re-read
+        # the configuration
+        cmd = (
+            f'sh -c "mosquitto_passwd -U {container_path}/{password_file}'
+            ' && killall -SIGHUP mosquitto"'
+        )
+        exit_code, output = container.exec_run(cmd)
+        if exit_code != 0:
+            raise Exception(output)
+
     # Allow the broker to startup and ready for the clients
     time.sleep(1)
 
     # Pass the execution to the test using the fixture
-    yield
+    yield dict(port=port)
     # Clean the container up once the test completes
     container.stop()
     shutil.rmtree(tmpdir, ignore_errors=True)
@@ -174,7 +214,7 @@ async def test_online_sensor_last_will(
     mqtt_client = MqttClientTimedSubscribe(
         # Timeout value should be sufficiently longer that keep-alive interval
         # above, so that last will feature will be activated
-        hostname='127.0.0.1', subscribe_timeout=5
+        hostname='127.0.0.1', subscribe_timeout=5,
     )
 
     # Attempt to receive online sensor state upon unclean shutdown of the MQTT
@@ -190,6 +230,49 @@ async def test_online_sensor_last_will(
             assert len(online_sensor_state) == 1
             # Verify the sensor state should be OFF during unclean shutdown
             assert online_sensor_state.pop() == json.dumps({'value': 'OFF'})
+
+
+@pytest.mark.asyncio
+async def test_online_sensor_normal_run(
+    # `pylint` mistekenly treats fixture as re-definition
+    # pylint: disable=redefined-outer-name, unused-argument
+    mqtt_broker
+):
+    '''
+    Tests online sensor for properly utilizing MQTT last will to set the state
+    if the code doesn't disconnect cleanly
+    '''
+
+    # Use MQTT client that allows for receiving MQTT messages over configured
+    # time interval, to avoid blocking execution indefinitely (as parent MQTT
+    # client does)
+    mqtt_client = MqttClientTimedSubscribe(
+        # Timeout value should be sufficiently longer that keep-alive interval
+        # above, so that last will feature will be activated
+        hostname='127.0.0.1', subscribe_timeout=5,
+    )
+
+    # Attempt to receive online sensor state upon unclean shutdown of the MQTT
+    # client
+    async with mqtt_client as client:
+        async with client.unfiltered_messages() as messages:
+            await client.subscribe('homeassistant/binary_sensor/+/+/state', 0)
+
+            with mock_config():
+                with mock_serial():
+                    await async_main()
+
+            online_sensor_state = [
+                x.payload.decode() async for x in messages
+                if 'IS_ONLINE' in x.topic
+            ]
+            # Verify only single message received
+            assert len(online_sensor_state) == 2
+            # Verify the sensor state should be OFF during unclean shutdown
+            assert online_sensor_state == [
+                json.dumps({'value': 'ON'}),
+                json.dumps({'value': 'OFF'})
+            ]
 
 
 def test_online_sensor():
