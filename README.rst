@@ -63,7 +63,8 @@ Configuration file is in YAML format and supports following elements:
             #  exit
             oneshot:
             # (number) default ``30``: delay in seconds between processing
-            #  cycles
+            #  cycles. Is also used as MQTT keepalive interval upon which the
+            #  broker will consider the client disconnected if no response
             intercycle_delay:
             # (string) default ``error``: logging level, one of ``critical``,
             #  ``error``, ``warning``, ``info`` or ``debug``
@@ -89,6 +90,8 @@ Configuration file is in YAML format and supports following elements:
             # (string) default ``homeassistant``: Preffix to MQTT topic names,
             #  should correspond to one set in HomeAssistant for auto-discovery
             hass_discovery_prefix:
+            # (bool) default ``true``: Whether to enable TLS with MQTT broker
+            tls:
         # (list of mappings) - optional: Energy meter parameters to process and
         #  properties of corresponding HASS sensor
         parameters:
@@ -139,6 +142,13 @@ There are Docker images available if you would like to run it as Docker containe
 ``ghcr.io/hostcc/energomera-hass-mqtt:<release version>``.
 
 As of writing, the images are built to ARM v6/v7 and ARM64 platforms.
+
+.. note::
+
+   For ARMv6 you might need to specify image variant explicitly, in case the
+   container engine detects it incorrectly and resulting image doesn't run as
+   expected. To do that just add ``--variant v6`` to ``pull`` command
+
 
 To run the program as container you will need to create a directory on the host
 and put ``config.yaml`` relevant to your setup there.
