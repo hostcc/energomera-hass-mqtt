@@ -239,8 +239,7 @@ async def test_online_sensor_normal_run(
     mqtt_broker
 ):
     '''
-    Tests online sensor for properly utilizing MQTT last will to set the state
-    if the code doesn't disconnect cleanly
+    Tests online sensor for properly reflecting online sensors state during normal run
     '''
 
     # Use MQTT client that allows for receiving MQTT messages over configured
@@ -252,8 +251,7 @@ async def test_online_sensor_normal_run(
         hostname='127.0.0.1', subscribe_timeout=5,
     )
 
-    # Attempt to receive online sensor state upon unclean shutdown of the MQTT
-    # client
+    # Attempt to receive online sensor state upon normal program run
     async with mqtt_client as client:
         async with client.unfiltered_messages() as messages:
             await client.subscribe('homeassistant/binary_sensor/+/+/state', 0)
@@ -266,9 +264,10 @@ async def test_online_sensor_normal_run(
                 x.payload.decode() async for x in messages
                 if 'IS_ONLINE' in x.topic
             ]
-            # Verify only single message received
+            # There should be two messages for online sensor - first with 'ON'
+            # value during the program run, and another with 'OFF' value
+            # generated at program exit
             assert len(online_sensor_state) == 2
-            # Verify the sensor state should be OFF during unclean shutdown
             assert online_sensor_state == [
                 json.dumps({'value': 'ON'}),
                 json.dumps({'value': 'OFF'})
