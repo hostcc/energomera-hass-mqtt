@@ -13,6 +13,10 @@ pythonpath = [
 log_cli = 1
 log_cli_level = "error"
 
+markers = [
+    "mqtt_broker_users",
+]
+
 [tool.pylint.main]
 load-plugins = "pylint.extensions.no_self_use"
 

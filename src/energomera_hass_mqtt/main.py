@@ -64,6 +64,7 @@ async def async_main():
         if config.of.general.oneshot:
             break
         await asyncio.sleep(config.of.general.intercycle_delay)
+    await client.finalize()
 
 
 def main():
