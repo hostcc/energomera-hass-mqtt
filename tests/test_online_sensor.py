@@ -239,7 +239,8 @@ async def test_online_sensor_normal_run(
     mqtt_broker
 ):
     '''
-    Tests online sensor for properly reflecting online sensors state during normal run
+    Tests online sensor for properly reflecting online sensors state during
+    normal run
     '''
 
     # Use MQTT client that allows for receiving MQTT messages over configured
