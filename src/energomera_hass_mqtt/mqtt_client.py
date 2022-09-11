@@ -54,15 +54,21 @@ class MqttClient(asyncio_mqtt.Client):
         """
         Connects to MQTT broker.
         Multiple calls will result only in single call to `connect()` method of
-        parent class, to allow the method to be called within a process loop
-        with no risk of constantly reinitializing MQTT broker connection.
+        parent class if the MQTT client needs a connection (not being connected
+        or got disconnected), to allow the method to be called within a process
+        loop with no risk of constantly reinitializing MQTT broker connection.
 
         :param args: Pass-through positional arguments for parent class
         :param kwargs: Pass-through keyword arguments for parent class
 
         """
-        if not self._connected.done():
-            await super().connect(*args, *kwargs)
+        if self._connected.done() and not self._disconnected.done():
+            _LOGGER.info(
+                'MQTT client is already connected, skipping subsequent attempt'
+            )
+            return
+
+        await super().connect(*args, *kwargs)
 
     def will_set(self, *args, **kwargs):
         """
