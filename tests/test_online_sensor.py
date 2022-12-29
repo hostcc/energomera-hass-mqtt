@@ -35,61 +35,6 @@ from energomera_hass_mqtt.mqtt_client import MqttClient
 from energomera_hass_mqtt.main import async_main, main
 
 
-# pylint: disable=too-few-public-methods
-class MqttClientTimedSubscribe(MqttClient):
-    '''
-    MQTT client with timed subscribe functionality - that is, allowing to
-    received messages from subscription within configured time frame. The
-    existing MQTT client, in contrast, awaits for the messages indefinitely
-
-    :param int subscribe_timeout: Time interval to wait for messages coming
-     from MQTT subscription
-    :param list *args: Pass through positional arguments
-    :param dict *kwargs: Pass trhough keyword arguments
-    '''
-    def __init__(self, subscribe_timeout, *args, **kwargs):
-        self._subscribe_timeout = subscribe_timeout
-        super().__init__(*args, **kwargs)
-
-    def _cb_and_generator(self, *_args, **_kwargs):
-        '''
-        Overrides the method providing callback for messages received from
-        subscription and sending them to the caller from async generator.
-        '''
-        messages = asyncio.Queue()
-
-        def _put_in_queue(_client, _userdata, msg):
-            '''
-            MQTT callback that simply puts received messages to the queue
-            '''
-            messages.put_nowait(msg)
-
-        async def _generator():
-            '''
-            Asynchronous generator that sends messages from the queue received
-            within configured time interval
-            '''
-            try:
-                asyncio_create_task = asyncio.create_task
-            except AttributeError:
-                # Python 3.6 has no `asyncio.create_task`
-                asyncio_create_task = asyncio.ensure_future
-
-            while True:
-                task = asyncio_create_task(messages.get())
-                done, _ = await asyncio.wait(
-                    [task], timeout=self._subscribe_timeout
-                )
-                # Stop processing messages if configured internal has elapsed
-                if task not in done:
-                    task.cancel()
-                    break
-                # Provide received message to the caller
-                yield task.result()
-
-        return _put_in_queue, _generator()
-
-
 @pytest.fixture
 def mqtt_broker(request):  # pylint: disable=too-many-locals
     '''
@@ -105,7 +50,7 @@ def mqtt_broker(request):  # pylint: disable=too-many-locals
     )
     ```
     '''
-    client = docker.DockerClient()
+    client = docker.DockerClient.from_env()
 
     port = 1883
     container_path = '/mosquitto/config'
@@ -130,7 +75,9 @@ def mqtt_broker(request):  # pylint: disable=too-many-locals
         'connection_messages true',
     ]
 
-    tmpdir = tempfile.mkdtemp(dir=os.getenv('RUNNER_TEMP'))
+    tmpdir = tempfile.mkdtemp(
+        dir=os.getenv('RUNNER_TEMP') or os.getenv('TOX_WORK_DIR')
+    )
     print(f'Using {tmpdir} as temporary directory for MQTT broker configs')
 
     if users:
@@ -175,6 +122,44 @@ def mqtt_broker(request):  # pylint: disable=too-many-locals
     shutil.rmtree(tmpdir, ignore_errors=True)
 
 
+async def read_online_sensor_states(code=None, timeout=5):
+    '''
+    Retrieves online sensor states from MQTT broker during alotted time frame -
+    traditional MQTT client subscribe() awaits for the messages indefinitely
+    '''
+    online_sensor_states = []
+
+    async def listen(sensor_states):
+        '''
+        Attempts to receive online sensor states
+        '''
+        async with MqttClient(hostname='127.0.0.1') as client:
+            async with client.messages() as messages:
+                await client.subscribe(
+                    'homeassistant/binary_sensor/+/+/state', 0
+                )
+                async for msg in messages:
+                    if 'IS_ONLINE' in msg.topic.value:
+                        sensor_states.append(msg.payload.decode())
+
+    task = asyncio.create_task(listen(online_sensor_states))
+    # Execute optional code (e.g. normal program run) before awaiting for
+    # sensor states
+    if code:
+        await code()
+
+    # Wait for configured time to allow sensor states to be retrieved
+    try:
+        await asyncio.wait_for(
+            task, timeout=timeout
+        )
+    # pylint:disable=broad-except
+    except Exception:
+        pass
+
+    return online_sensor_states
+
+
 @pytest.mark.asyncio
 async def test_online_sensor_last_will(
     # `pylint` mistekenly treats fixture as re-definition
@@ -208,28 +193,9 @@ async def test_online_sensor_last_will(
                 with patch.object(MqttClient, '_keepalive', 1):
                     await async_main()
 
-    # Use MQTT client that allows for receiving MQTT messages over configured
-    # time interval, to avoid blocking execution indefinitely (as parent MQTT
-    # client does)
-    mqtt_client = MqttClientTimedSubscribe(
-        # Timeout value should be sufficiently longer that keep-alive interval
-        # above, so that last will feature will be activated
-        hostname='127.0.0.1', subscribe_timeout=5,
-    )
-
-    # Attempt to receive online sensor state upon unclean shutdown of the MQTT
-    # client
-    async with mqtt_client as client:
-        async with client.unfiltered_messages() as messages:
-            await client.subscribe('homeassistant/binary_sensor/+/+/state', 0)
-            online_sensor_state = [
-                x.payload.decode() async for x in messages
-                if 'IS_ONLINE' in x.topic
-            ]
-            # Verify only single message received
-            assert len(online_sensor_state) == 1
-            # Verify the sensor state should be OFF during unclean shutdown
-            assert online_sensor_state.pop() == json.dumps({'value': 'OFF'})
+    online_sensor_states = await read_online_sensor_states()
+    # Verify the last sensor state should be OFF during unclean shutdown
+    assert online_sensor_states.pop() == json.dumps({'value': 'OFF'})
 
 
 @pytest.mark.asyncio
@@ -243,36 +209,21 @@ async def test_online_sensor_normal_run(
     normal run
     '''
 
-    # Use MQTT client that allows for receiving MQTT messages over configured
-    # time interval, to avoid blocking execution indefinitely (as parent MQTT
-    # client does)
-    mqtt_client = MqttClientTimedSubscribe(
-        # Timeout value should be sufficiently longer that keep-alive interval
-        # above, so that last will feature will be activated
-        hostname='127.0.0.1', subscribe_timeout=5,
-    )
-
     # Attempt to receive online sensor state upon normal program run
-    async with mqtt_client as client:
-        async with client.unfiltered_messages() as messages:
-            await client.subscribe('homeassistant/binary_sensor/+/+/state', 0)
+    async def normal_run():
+        with mock_config():
+            with mock_serial():
+                await async_main()
 
-            with mock_config():
-                with mock_serial():
-                    await async_main()
-
-            online_sensor_state = [
-                x.payload.decode() async for x in messages
-                if 'IS_ONLINE' in x.topic
-            ]
-            # There should be two messages for online sensor - first with 'ON'
-            # value during the program run, and another with 'OFF' value
-            # generated at program exit
-            assert len(online_sensor_state) == 2
-            assert online_sensor_state == [
-                json.dumps({'value': 'ON'}),
-                json.dumps({'value': 'OFF'})
-            ]
+    online_sensor_states = await read_online_sensor_states(normal_run)
+    # There should be two messages for online sensor - first with 'ON'
+    # value during the program run, and another with 'OFF' value
+    # generated at program exit
+    assert len(online_sensor_states) == 2
+    assert online_sensor_states == [
+        json.dumps({'value': 'ON'}),
+        json.dumps({'value': 'OFF'})
+    ]
 
 
 def test_online_sensor():
