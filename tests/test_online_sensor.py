@@ -194,9 +194,7 @@ async def test_online_sensor_last_will(
                     await async_main()
 
     online_sensor_states = await read_online_sensor_states()
-    # Verify only single message received
-    assert len(online_sensor_states) == 1
-    # Verify the sensor state should be OFF during unclean shutdown
+    # Verify the last sensor state should be OFF during unclean shutdown
     assert online_sensor_states.pop() == json.dumps({'value': 'OFF'})
 
 
