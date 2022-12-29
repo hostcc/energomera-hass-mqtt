@@ -105,7 +105,7 @@ def mqtt_broker(request):  # pylint: disable=too-many-locals
     )
     ```
     '''
-    client = docker.DockerClient()
+    client = docker.DockerClient.from_env()
 
     port = 1883
     container_path = '/mosquitto/config'
@@ -130,7 +130,9 @@ def mqtt_broker(request):  # pylint: disable=too-many-locals
         'connection_messages true',
     ]
 
-    tmpdir = tempfile.mkdtemp(dir=os.getenv('RUNNER_TEMP'))
+    tmpdir = tempfile.mkdtemp(
+        dir=os.getenv('RUNNER_TEMP') or os.getenv('TOX_WORK_DIR')
+    )
     print(f'Using {tmpdir} as temporary directory for MQTT broker configs')
 
     if users:
