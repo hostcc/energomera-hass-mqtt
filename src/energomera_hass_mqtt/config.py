@@ -221,8 +221,9 @@ class EnergomeraConfig:
         # Store the configuration state as `addict.Dict` so access by (possibly
         # chained) attributes is available
         self._config = Dict(config)
-        # If enabled makes parameters a combination of default ones plus those defined
-        # in the configuration file, no check for duplicates is performed!
+        # If enabled makes parameters a combination of default ones plus those
+        # defined in the configuration file, no check for duplicates is
+        # performed!
         if self._config.general.include_default_parameters:
             self._config.parameters = (
                 DEFAULT_CONFIG.parameters + self._config.parameters
