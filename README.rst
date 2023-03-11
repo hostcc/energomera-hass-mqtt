@@ -69,7 +69,10 @@ Configuration file is in YAML format and supports following elements:
             # (string) default ``error``: logging level, one of ``critical``,
             #  ``error``, ``warning``, ``info`` or ``debug``
             logging_level:
-
+            # (bool) default ``false``: if enabled makes parameters a
+            # combination of default ones plus those defined in the
+            # configuration file, no check for duplicates is performed!
+            include_default_parameters:
         # Energy meter parameters
         meter:
             # (string) Serial port (e.g. /dev/ttyUSB0)

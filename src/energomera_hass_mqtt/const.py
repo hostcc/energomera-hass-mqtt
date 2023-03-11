@@ -31,6 +31,7 @@ DEFAULT_CONFIG = Dict(
         oneshot=False,
         intercycle_delay=30,
         logging_level='error',
+        include_default_parameters=False,
     ),
     meter=dict(
         timeout=30,

@@ -156,6 +156,10 @@ class EnergomeraConfig:
                     error='Invalid logging level - should be one of'
                           f' {", ".join(self._logging_levels.keys())}'
                 ),
+                Optional(
+                    'include_default_parameters',
+                    default=DEFAULT_CONFIG.general.include_default_parameters
+                ): bool,
             }),
             'meter': {
                 'port': str,
@@ -213,9 +217,17 @@ class EnergomeraConfig:
             raise EnergomeraConfigError(
                 f'Error validating configuration file:\n{str(exc)}'
             ) from None
+
         # Store the configuration state as `addict.Dict` so access by (possibly
-        # chained) attributes is avavilable
+        # chained) attributes is available
         self._config = Dict(config)
+        # If enabled makes parameters a combination of default ones plus those
+        # defined in the configuration file, no check for duplicates is
+        # performed!
+        if self._config.general.include_default_parameters:
+            self._config.parameters = (
+                DEFAULT_CONFIG.parameters + self._config.parameters
+            )
         # Make a copy of the original configuration for the `interpolate()`
         # method to access initially defined interpolation expressions if any
         self._orig_config = deepcopy(self._config)
