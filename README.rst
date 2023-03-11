@@ -121,10 +121,25 @@ Configuration file is in YAML format and supports following elements:
               response_idx:
 
 
+Interpolation expressions
+-------------------------
+
 ``parameters`` section supports following expressions:
 
-        - ``{{ energomera_prev_month }}``: Previous month in meter's format
-        - ``{{ energomera_prev_day }}``: Previous day in meter's format
+        - ``{{ energomera_prev_month }}``: Previous month in meter's format,
+          defaults to one month back
+        - ``{{ energomera_prev_day }}``: Previous day in meter's format,
+          default to one day back
+
+All expressions support passing optional argument as ``(...)`` to specify how far
+interpolated result should go in the past. Whitespaces around the brackets,
+both inner and outer, are ignored. Specifying empty argument results in
+using a default value as per interpolation specification above.
+
+For example, ``{{ energomera_prev_day (5) }}`` will result in meter-specific
+timestamp returned for the date being 5 days ago. An use case for that might be
+intermittent connectivity to the meter where the readings aren't sent to
+collecting system on cadence thus have gaps in data points.
 
 
 ``systemd`` support

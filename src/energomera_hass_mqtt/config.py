@@ -24,9 +24,10 @@ from YAML files with defaults and schema validation.
 """
 
 import logging
-from datetime import (date, timedelta)
+from datetime import date
 from copy import deepcopy
 import re
+from dateutil.relativedelta import relativedelta
 import yaml
 from schema import Schema, Optional, SchemaError, Or, And
 from addict import Dict
@@ -46,21 +47,68 @@ class EnergomeraConfig:
     :param str config_file: Name of configuration file
     :param str content: Literal content representing the configuration
     """
+
     @staticmethod
-    def _energomera_prev_month():
+    def _energomera_re_expr_param_int(match, default):
+        """
+        Static method to be used with ``re.sub()`` as callable processing the
+        first match group as the argument to interpolation expression.
+
+        :param re.Match match: Match object provided by ``re.sub``
+        :param int default: Default value for the argument
+        :return str: Interpolated value for the expression argument
+        :rtype: str
+        """
+        try:
+            expr = match.group(0)
+            arg = match.group(1)
+        except IndexError:
+            # Match having no groups results in default value, likely the regex
+            # has no such
+            return default
+
+        # Empty argument results in default value
+        if not arg:
+            return default
+
+        # Having no opening or closing bracket is an error, the leading and
+        # trailing whitespace should be removed in the regex
+        if not arg.endswith(')') or not arg.startswith('('):
+            raise EnergomeraConfigError(
+                f"Wrong argument format '{arg}' in expression '{expr}'"
+            )
+
+        # Remove brackets surrounding the value and whitespaces (inner ones)
+        arg_content = (arg[1:-1] or '').strip()
+        # Empty argument results in default value
+        if not arg_content:
+            return default
+
+        # Attempt to parse the argument as integer and raise error if it isn't
+        try:
+            return int(arg_content)
+        except ValueError as exc:
+            raise EnergomeraConfigError(
+                f"Non-numeric argument '{arg_content}' in expression '{expr}'"
+            ) from exc
+
+    @staticmethod
+    def _energomera_prev_month(match):
         """
         Static method to calculate previous month in meter's format.
 
         :return: Previous month formatted as ``<month number>.<year>``
         :rtype: str
         """
+
+        months = EnergomeraConfig._energomera_re_expr_param_int(match, 1)
         return (
-            (date.today().replace(day=1) - timedelta(days=1))
+            (date.today() - relativedelta(months=months))
             .strftime('%m.%y')
         )
 
     @staticmethod
-    def _energomera_prev_day():
+    def _energomera_prev_day(match):
         """
         Static method to calculate previous day in meter's format.
 
@@ -68,8 +116,9 @@ class EnergomeraConfig:
           number>.<year>``
         :rtype: str
         """
+        days = EnergomeraConfig._energomera_re_expr_param_int(match, 1)
         return (
-            (date.today() - timedelta(days=1))
+            (date.today() - relativedelta(days=days))
             .strftime('%d.%m.%y')
         )
 
@@ -204,10 +253,10 @@ class EnergomeraConfig:
             for key, value in param.items():
                 # Interpolate expressions in string values
                 if isinstance(value, str):
-                    value = re.sub(r'{{\s*energomera_prev_month\s*}}',
-                                   self._energomera_prev_month(), value)
-                    value = re.sub(r'{{\s*energomera_prev_day\s*}}',
-                                   self._energomera_prev_day(), value)
+                    value = re.sub(r'{{\s*energomera_prev_month\s*(.*?)\s*}}',
+                                   self._energomera_prev_month, value)
+                    value = re.sub(r'{{\s*energomera_prev_day\s*(.*?)\s*}}',
+                                   self._energomera_prev_day, value)
                     # Store the (possibly) interpolated value to the
                     # configuration exposed to the consumers
                     self._config.parameters[idx][key] = value
