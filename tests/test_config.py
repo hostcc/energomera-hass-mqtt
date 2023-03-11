@@ -54,6 +54,7 @@ def test_valid_config_file():
             'oneshot': False,
             'intercycle_delay': 30,
             'logging_level': 'error',
+            'include_default_parameters': False,
         },
         'meter': {
             'port': 'dummy_serial',
@@ -86,6 +87,39 @@ def test_valid_config_file():
         assert isinstance(config.of, dict)
         assert config.of == valid_config
         assert config.logging_level == logging.ERROR
+
+
+def test_valid_config_file_with_default_parameters():
+    '''
+    Tests for processing of valid configuration file that allows including
+    default parameters plus adds some custom ones.
+    '''
+    valid_config_yaml = '''
+        general:
+          include_default_parameters: true
+        meter:
+          port: dummy_serial
+          password: dummy_password
+        mqtt:
+          host: a_mqtt_host
+          user: a_mqtt_user
+          password: mqtt_dummy_password
+        parameters:
+            - name: dummy_param
+              address: dummy_addr
+              device_class: dummy_class
+              state_class: dummy_state
+              unit: dummy
+    '''
+
+    with patch('builtins.open', mock_open(read_data=valid_config_yaml)):
+        config = EnergomeraConfig(config_file='dummy')
+        assert isinstance(config.of, dict)
+        # Resulting number of parameters should be combined across default and
+        # custom ones
+        assert len(config.of.parameters) == 12
+        # Verify the last parameter is the custom one
+        assert config.of.parameters[-1].name == 'dummy_param'
 
 
 def test_empty_file():
