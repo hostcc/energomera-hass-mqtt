@@ -23,6 +23,7 @@ Tests for `EnergomeraConfig` class.
 '''
 
 import logging
+import re
 from unittest.mock import mock_open, patch
 from freezegun import freeze_time
 import pytest
@@ -256,13 +257,13 @@ def test_config_interpolation_date_change(
         )
 
 
-@pytest.fixture
 def config_with_invalid_interpolations():
     '''
     Provides configuration object with interpolation expressions having invalid
     argument specified.
     '''
-    interpolated_config_yaml = '''
+    interpolated_configs_yaml = [
+        '''
         meter:
           port: dummy_serial
           password: dummy_password
@@ -278,6 +279,16 @@ def config_with_invalid_interpolations():
               state_class: dummy_state
               unit: dummy
               additional_data: '{{ energomera_prev_day ( }}'
+        ''',
+        '''
+        meter:
+          port: dummy_serial
+          password: dummy_password
+        mqtt:
+          host: a_mqtt_host
+          user: a_mqtt_user
+          password: mqtt_dummy_password
+        parameters:
             # Argument with opening bracket missing
             - name: dummy_param2
               address: dummy_addr1
@@ -285,6 +296,16 @@ def config_with_invalid_interpolations():
               state_class: dummy_state
               unit: dummy
               additional_data: '{{ energomera_prev_day ) }}'
+        ''',
+        '''
+        meter:
+          port: dummy_serial
+          password: dummy_password
+        mqtt:
+          host: a_mqtt_host
+          user: a_mqtt_user
+          password: mqtt_dummy_password
+        parameters:
             # Non-numeric argument
             - name: dummy_param3
               address: dummy_addr1
@@ -292,18 +313,43 @@ def config_with_invalid_interpolations():
               state_class: dummy_state
               unit: dummy
               additional_data: '{{ energomera_prev_day (non-numeric) }}'
-    '''
-    with patch('builtins.open', mock_open(read_data=interpolated_config_yaml)):
-        config = EnergomeraConfig(config_file='dummy')
-    return config
+        ''',
+    ]
+    for config_yaml in interpolated_configs_yaml:
+        with patch('builtins.open', mock_open(read_data=config_yaml)):
+            config = EnergomeraConfig(config_file='dummy')
+        yield config
 
 
 # `pylint` mistekenly treats fixture as re-definition
 # pylint: disable=redefined-outer-name
-def test_config_interpolation_invalid(config_with_invalid_interpolations):
+@pytest.mark.parametrize('config', config_with_invalid_interpolations())
+def test_config_interpolation_invalid(config):
     '''
     Verifies the expression interpolation raises exception processing the
     argument having invalid format.
     '''
     with pytest.raises(EnergomeraConfigError):
-        config_with_invalid_interpolations.interpolate()
+        config.interpolate()
+
+
+def test_config_interpolation_expr_param_re_no_groups():
+    '''
+    Verifies processing interpolation expression with associated regexp having
+    no capturing groups results in default value.
+    '''
+    res = EnergomeraConfig._energomera_re_expr_param_int(
+        re.match('dummy pattern', 'dummy pattern'), 100
+    )
+    assert res == 100
+
+
+def test_config_interpolation_expr_param_re_no_match():
+    '''
+    Verifies assertion fails when calling the method to process interpolation
+    expression arguments directly with non-matching regex.
+    '''
+    with pytest.raises(AssertionError):
+        EnergomeraConfig._energomera_re_expr_param_int(
+            re.match('dummy pattern', 'dummy non-matching value'), 100
+        )

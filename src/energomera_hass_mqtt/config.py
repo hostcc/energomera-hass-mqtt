@@ -59,6 +59,10 @@ class EnergomeraConfig:
         :return str: Interpolated value for the expression argument
         :rtype: str
         """
+        # The method is designed to be called by `re.sub`, protect from being
+        # called directly with no re.Match instance provided
+        assert match is not None
+
         try:
             expr = match.group(0)
             arg = match.group(1)
