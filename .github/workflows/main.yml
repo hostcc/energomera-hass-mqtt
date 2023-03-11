@@ -29,6 +29,9 @@ jobs:
           - os: ubuntu-latest
             python: '3.10'
             toxenv: py
+          - os: ubuntu-latest
+            python: '3.11'
+            toxenv: py
     runs-on: ${{ matrix.os }}
     outputs:
       version: ${{ steps.package-version.outputs.VALUE }}
