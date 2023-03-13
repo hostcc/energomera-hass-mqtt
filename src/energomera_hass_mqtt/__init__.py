@@ -194,6 +194,7 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
             ),
             device_class=self._config_param.device_class,
             unique_id=self._hass_unique_id,
+            object_id=self._hass_unique_id,
             unit_of_measurement=self._config_param.unit,
             state_class=self._config_param.state_class,
             state_topic=self._hass_state_topic,
@@ -334,6 +335,7 @@ class IecToHassBinarySensor(IecToHassSensor):
             ),
             device_class=self._config_param.device_class,
             unique_id=self._hass_unique_id,
+            object_id=self._hass_unique_id,
             state_topic=self._hass_state_topic,
             value_template='{{ value_json.value }}',
         )

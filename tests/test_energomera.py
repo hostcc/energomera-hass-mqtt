@@ -197,6 +197,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'energy',
                 'unique_id': 'CE301_00123456_ET0PE',
+                'object_id': 'CE301_00123456_ET0PE',
                 'unit_of_measurement': 'kWh',
                 'state_class': 'total_increasing',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -224,6 +225,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'energy',
                 'unique_id': 'CE301_00123456_ECMPE',
+                'object_id': 'CE301_00123456_ECMPE',
                 'unit_of_measurement': 'kWh',
                 'state_class': 'total',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -251,6 +253,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'energy',
                 'unique_id': 'CE301_00123456_ENMPE_PREV_MONTH',
+                'object_id': 'CE301_00123456_ENMPE_PREV_MONTH',
                 'unit_of_measurement': 'kWh',
                 'state_class': 'total_increasing',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -279,6 +282,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'energy',
                 'unique_id': 'CE301_00123456_ECMPE_PREV_MONTH',
+                'object_id': 'CE301_00123456_ECMPE_PREV_MONTH',
                 'unit_of_measurement': 'kWh',
                 'state_class': 'total',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -307,6 +311,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'energy',
                 'unique_id': 'CE301_00123456_ECDPE',
+                'object_id': 'CE301_00123456_ECDPE',
                 'unit_of_measurement': 'kWh',
                 'state_class': 'total',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -334,6 +339,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'power',
                 'unique_id': 'CE301_00123456_POWPP_0',
+                'object_id': 'CE301_00123456_POWPP_0',
                 'unit_of_measurement': 'kW',
                 'state_class': 'measurement',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -362,6 +368,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'power',
                 'unique_id': 'CE301_00123456_POWPP_1',
+                'object_id': 'CE301_00123456_POWPP_1',
                 'unit_of_measurement': 'kW',
                 'state_class': 'measurement',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -390,6 +397,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'power',
                 'unique_id': 'CE301_00123456_POWPP_2',
+                'object_id': 'CE301_00123456_POWPP_2',
                 'unit_of_measurement': 'kW',
                 'state_class': 'measurement',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -418,6 +426,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'power',
                 'unique_id': 'CE301_00123456_POWEP',
+                'object_id': 'CE301_00123456_POWEP',
                 'unit_of_measurement': 'kW',
                 'state_class': 'measurement',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -445,6 +454,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'voltage',
                 'unique_id': 'CE301_00123456_VOLTA_0',
+                'object_id': 'CE301_00123456_VOLTA_0',
                 'unit_of_measurement': 'V',
                 'state_class': 'measurement',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -473,6 +483,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'voltage',
                 'unique_id': 'CE301_00123456_VOLTA_1',
+                'object_id': 'CE301_00123456_VOLTA_1',
                 'unit_of_measurement': 'V',
                 'state_class': 'measurement',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -501,6 +512,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'voltage',
                 'unique_id': 'CE301_00123456_VOLTA_2',
+                'object_id': 'CE301_00123456_VOLTA_2',
                 'unit_of_measurement': 'V',
                 'state_class': 'measurement',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -529,6 +541,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'voltage',
                 'unique_id': 'CE301_00123456_VNULL',
+                'object_id': 'CE301_00123456_VNULL',
                 'unit_of_measurement': 'V',
                 'state_class': 'measurement',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -556,6 +569,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'current',
                 'unique_id': 'CE301_00123456_CURRE_0',
+                'object_id': 'CE301_00123456_CURRE_0',
                 'unit_of_measurement': 'A',
                 'state_class': 'measurement',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -584,6 +598,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'current',
                 'unique_id': 'CE301_00123456_CURRE_1',
+                'object_id': 'CE301_00123456_CURRE_1',
                 'unit_of_measurement': 'A',
                 'state_class': 'measurement',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -612,6 +627,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'current',
                 'unique_id': 'CE301_00123456_CURRE_2',
+                'object_id': 'CE301_00123456_CURRE_2',
                 'unit_of_measurement': 'A',
                 'state_class': 'measurement',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -640,6 +656,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'frequency',
                 'unique_id': 'CE301_00123456_FREQU',
+                'object_id': 'CE301_00123456_FREQU',
                 'unit_of_measurement': 'Hz',
                 'state_class': 'measurement',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -669,6 +686,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'current',
                 'unique_id': 'CE301_00123456_CURRE_INDEXED_0',
+                'object_id': 'CE301_00123456_CURRE_INDEXED_0',
                 'unit_of_measurement': 'A',
                 'state_class': 'measurement',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -697,6 +715,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'current',
                 'unique_id': 'CE301_00123456_CURRE_INDEXED_1',
+                'object_id': 'CE301_00123456_CURRE_INDEXED_1',
                 'unit_of_measurement': 'A',
                 'state_class': 'measurement',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -725,6 +744,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'current',
                 'unique_id': 'CE301_00123456_CURRE_INDEXED_2',
+                'object_id': 'CE301_00123456_CURRE_INDEXED_2',
                 'unit_of_measurement': 'A',
                 'state_class': 'measurement',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -754,6 +774,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'current',
                 'unique_id': 'CE301_00123456_CURRE_INDEXED_FALLBACK_0',
+                'object_id': 'CE301_00123456_CURRE_INDEXED_FALLBACK_0',
                 'unit_of_measurement': 'A',
                 'state_class': 'measurement',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -783,6 +804,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'current',
                 'unique_id': 'CE301_00123456_CURRE_INDEXED_FALLBACK_1',
+                'object_id': 'CE301_00123456_CURRE_INDEXED_FALLBACK_1',
                 'unit_of_measurement': 'A',
                 'state_class': 'measurement',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -812,6 +834,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'current',
                 'unique_id': 'CE301_00123456_CURRE_INDEXED_FALLBACK_2',
+                'object_id': 'CE301_00123456_CURRE_INDEXED_FALLBACK_2',
                 'unit_of_measurement': 'A',
                 'state_class': 'measurement',
                 'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -841,6 +864,7 @@ mqtt_publish_calls = [
                 },
                 'device_class': 'connectivity',
                 'unique_id': 'CE301_00123456_IS_ONLINE',
+                'object_id': 'CE301_00123456_IS_ONLINE',
                 'state_topic': 'homeassistant/binary_sensor/CE301_00123456'
                                '/CE301_00123456_IS_ONLINE'
                                '/state',
