@@ -54,9 +54,9 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
 
     # Class attribute to store HASS sensors having config payload sent, to
     # ensure it is done only once per multiple instantiations of the class -
-    # HASS needs sensor disocvery only once, otherwise logs a message re:
+    # HASS needs sensor discovery only once, otherwise logs a message re:
     # sensor has already been discovered
-    _hass_config_entities_published = {}
+    hass_config_payloads_published = {}
     # Class attribute defining MQTT topic base for HASS discovery
     _mqtt_topic_base = 'sensor'
 
@@ -259,15 +259,17 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
                 if setup_only:
                     continue
 
-                # Send payloads using MQTT
-                # Send config payload for HomeAssistant discovery only once
-                # per sensor
-                if (self._hass_unique_id not in
-                        self._hass_config_entities_published):
-
-                    # Config payload for sensor discovery
-                    config_payload = self.hass_config_payload()
-                    json_config_payload = json.dumps(config_payload)
+                # Send configuration payloads using MQTT once per sensor
+                config_payload = self.hass_config_payload()
+                json_config_payload = json.dumps(config_payload)
+                config_payload_sent_hash = (
+                    self.hass_config_payloads_published.get(
+                        self._hass_unique_id, None
+                    )
+                )
+                # (re)send the configuration payload once it changes (e.g. due
+                # to interpolation)
+                if config_payload_sent_hash != hash(json_config_payload):
                     _LOGGER.debug("MQTT config payload for HASS"
                                   " auto-discovery: '%s'",
                                   json_config_payload)
@@ -277,10 +279,10 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
                         payload=json_config_payload,
                         retain=True,
                     )
-                    # Mark the config payload for the given sensor as sent
-                    self._hass_config_entities_published[
+                    # Keep track of JSON formatted configuration payloads sent
+                    self.hass_config_payloads_published[
                         self._hass_unique_id
-                    ] = True
+                    ] = hash(json_config_payload)
 
                     _LOGGER.debug("Sent HASS config payload to MQTT topic"
                                   " '%s'",
@@ -458,6 +460,11 @@ class EnergomeraHassMqtt:
         self._model = None
         self._serial_number = None
         self._sw_version = None
+
+        # (re)initialize what configuration payloads have been sent across all
+        # instances of `IecToHassSensor`. Mostly used by tests, as
+        # `async_main()` instantiates the class only once
+        IecToHassSensor.hass_config_payloads_published = {}
 
     def iec_read_values(self, address, additional_data=None):
         """

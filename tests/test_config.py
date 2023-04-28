@@ -24,30 +24,32 @@ Tests for `EnergomeraConfig` class.
 
 import logging
 import re
-from unittest.mock import mock_open, patch
 from freezegun import freeze_time
 import pytest
 from energomera_hass_mqtt import EnergomeraConfig, EnergomeraConfigError
 
+VALID_CONFIG_YAML = '''
+    meter:
+      port: dummy_serial
+      password: dummy_password
+    mqtt:
+      host: a_mqtt_host
+      user: a_mqtt_user
+      password: mqtt_dummy_password
+    parameters:
+        - name: dummy_param
+          address: dummy_addr
+          device_class: dummy_class
+          state_class: dummy_state
+          unit: dummy
+'''
 
+
+@pytest.mark.usefixtures('mock_config')
+@pytest.mark.config_yaml(VALID_CONFIG_YAML)
 def test_valid_config_file():
     '''
     Tests for processing of valid configuration file.
-    '''
-    valid_config_yaml = '''
-        meter:
-          port: dummy_serial
-          password: dummy_password
-        mqtt:
-          host: a_mqtt_host
-          user: a_mqtt_user
-          password: mqtt_dummy_password
-        parameters:
-            - name: dummy_param
-              address: dummy_addr
-              device_class: dummy_class
-              state_class: dummy_state
-              unit: dummy
     '''
     valid_config = {
         'general': {
@@ -82,55 +84,58 @@ def test_valid_config_file():
         ],
     }
 
-    with patch('builtins.open', mock_open(read_data=valid_config_yaml)):
-        config = EnergomeraConfig(config_file='dummy')
-        assert isinstance(config.of, dict)
-        assert config.of == valid_config
-        assert config.logging_level == logging.ERROR
+    config = EnergomeraConfig(config_file='dummy')
+    assert isinstance(config.of, dict)
+    assert config.of == valid_config
+    assert config.logging_level == logging.ERROR
 
 
+VALID_CONFIG_DEFAULT_PARAMETERS_YAML = '''
+    general:
+      include_default_parameters: true
+    meter:
+      port: dummy_serial
+      password: dummy_password
+    mqtt:
+      host: a_mqtt_host
+      user: a_mqtt_user
+      password: mqtt_dummy_password
+    parameters:
+        - name: dummy_param
+          address: dummy_addr
+          device_class: dummy_class
+          state_class: dummy_state
+          unit: dummy
+'''
+
+
+@pytest.mark.usefixtures('mock_config')
+@pytest.mark.config_yaml(VALID_CONFIG_DEFAULT_PARAMETERS_YAML)
 def test_valid_config_file_with_default_parameters():
     '''
     Tests for processing of valid configuration file that allows including
     default parameters plus adds some custom ones.
     '''
-    valid_config_yaml = '''
-        general:
-          include_default_parameters: true
-        meter:
-          port: dummy_serial
-          password: dummy_password
-        mqtt:
-          host: a_mqtt_host
-          user: a_mqtt_user
-          password: mqtt_dummy_password
-        parameters:
-            - name: dummy_param
-              address: dummy_addr
-              device_class: dummy_class
-              state_class: dummy_state
-              unit: dummy
-    '''
-
-    with patch('builtins.open', mock_open(read_data=valid_config_yaml)):
-        config = EnergomeraConfig(config_file='dummy')
-        assert isinstance(config.of, dict)
-        # Resulting number of parameters should be combined across default and
-        # custom ones
-        assert len(config.of.parameters) == 12
-        # Verify the last parameter is the custom one
-        assert config.of.parameters[-1].name == 'dummy_param'
+    config = EnergomeraConfig(config_file='dummy')
+    assert isinstance(config.of, dict)
+    # Resulting number of parameters should be combined across default and
+    # custom ones
+    assert len(config.of.parameters) == 12
+    # Verify the last parameter is the custom one
+    assert config.of.parameters[-1].name == 'dummy_param'
 
 
+@pytest.mark.usefixtures('mock_config')
+@pytest.mark.config_yaml('')
 def test_empty_file():
     '''
     Tests for processing empty configuration file.
     '''
-    with patch('builtins.open', mock_open(read_data='')):
-        with pytest.raises(EnergomeraConfigError):
-            EnergomeraConfig('dummy')
+    with pytest.raises(EnergomeraConfigError):
+        EnergomeraConfig('dummy')
 
 
+@pytest.mark.config_yaml(None)
 def test_non_existing_file():
     '''
     Tests for processing non-existent configuration file.
@@ -175,69 +180,60 @@ def test_config_invalid_logging_level():
         EnergomeraConfig(content=invalid_config)
 
 
-@pytest.fixture(scope='module')
-def config_with_interpolations():
-    '''
-    Provides configuration object with interpolation expressions. To be
-    instantiated once per module to verify multiple calls to interpolate over
-    single instance of configuration object.
-    '''
-    interpolated_config_yaml = '''
-        meter:
-          port: dummy_serial
-          password: dummy_password
-        mqtt:
-          host: a_mqtt_host
-          user: a_mqtt_user
-          password: mqtt_dummy_password
-        parameters:
-            - name: dummy_param1
-              address: dummy_addr1
-              device_class: dummy_class
-              state_class: dummy_state
-              unit: dummy
-              additional_data: '{{ energomera_prev_month }}'
-            - name: dummy_param2
-              address: dummy_addr1
-              device_class: dummy_class
-              state_class: dummy_state
-              unit: dummy
-              additional_data: '{{ energomera_prev_day }}'
-            # Argument specifying 5 months ago
-            - name: dummy_param3
-              address: dummy_addr1
-              device_class: dummy_class
-              state_class: dummy_state
-              unit: dummy
-              additional_data: '{{ energomera_prev_month (5) }}'
-            # Argument specifying 2 days ago
-            - name: dummy_param4
-              address: dummy_addr1
-              device_class: dummy_class
-              state_class: dummy_state
-              unit: dummy
-              additional_data: '{{ energomera_prev_day (2) }}'
-            # Empty argument that falls back to 1 month ago
-            - name: dummy_param5
-              address: dummy_addr1
-              device_class: dummy_class
-              state_class: dummy_state
-              unit: dummy
-              additional_data: '{{ energomera_prev_month () }}'
-            # Empty argument with whitespaces only that falls back to 1 day ago
-            - name: dummy_param6
-              address: dummy_addr1
-              device_class: dummy_class
-              state_class: dummy_state
-              unit: dummy
-              additional_data: '{{ energomera_prev_day ( ) }}'
-    '''
-
-    with patch('builtins.open', mock_open(read_data=interpolated_config_yaml)):
-        config = EnergomeraConfig(config_file='dummy')
-    return config
+INTERPOLATED_CONFIG_YAML = '''
+    meter:
+      port: dummy_serial
+      password: dummy_password
+    mqtt:
+      host: a_mqtt_host
+      user: a_mqtt_user
+      password: mqtt_dummy_password
+    parameters:
+        - name: dummy_param1
+          address: dummy_addr1
+          device_class: dummy_class
+          state_class: dummy_state
+          unit: dummy
+          additional_data: '{{ energomera_prev_month }}'
+        - name: dummy_param2
+          address: dummy_addr1
+          device_class: dummy_class
+          state_class: dummy_state
+          unit: dummy
+          additional_data: '{{ energomera_prev_day }}'
+        # Argument specifying 5 months ago
+        - name: dummy_param3
+          address: dummy_addr1
+          device_class: dummy_class
+          state_class: dummy_state
+          unit: dummy
+          additional_data: '{{ energomera_prev_month (5) }}'
+        # Argument specifying 2 days ago
+        - name: dummy_param4
+          address: dummy_addr1
+          device_class: dummy_class
+          state_class: dummy_state
+          unit: dummy
+          additional_data: '{{ energomera_prev_day (2) }}'
+        # Empty argument that falls back to 1 month ago
+        - name: dummy_param5
+          address: dummy_addr1
+          device_class: dummy_class
+          state_class: dummy_state
+          unit: dummy
+          additional_data: '{{ energomera_prev_month () }}'
+        # Empty argument with whitespaces only that falls back to 1 day ago
+        - name: dummy_param6
+          address: dummy_addr1
+          device_class: dummy_class
+          state_class: dummy_state
+          unit: dummy
+          additional_data: '{{ energomera_prev_day ( ) }}'
+'''
 
 
+@pytest.mark.usefixtures('mock_config')
+@pytest.mark.config_yaml(INTERPOLATED_CONFIG_YAML)
 @pytest.mark.parametrize(
     'frozen_date,prev_month,prev_day,older_month,older_day',
     [
@@ -248,122 +244,111 @@ def config_with_interpolations():
     ]
 )
 def test_config_interpolation_date_change(
-    # `pylint` mistekenly treats fixture as re-definition
-    # pylint: disable=redefined-outer-name,too-many-arguments
-    config_with_interpolations, frozen_date,
-    prev_month, prev_day, older_month, older_day
+    frozen_date, prev_month, prev_day, older_month, older_day
 ):
     '''
     Verifies for interpolated expressions properly processed when `interpolate`
     method is called repeatedly on single configuration object.
     '''
     with freeze_time(frozen_date):
-        config_with_interpolations.interpolate()
+        config = EnergomeraConfig(config_file='dummy')
+        config.interpolate()
         assert (
-            config_with_interpolations
+            config
             .of.parameters[0]
             .additional_data == prev_month
         )
         assert (
-            config_with_interpolations
+            config
             .of.parameters[1]
             .additional_data == prev_day
         )
         assert (
-            config_with_interpolations
+            config
             .of.parameters[2]
             .additional_data == older_month
         )
         assert (
-            config_with_interpolations
+            config
             .of.parameters[3]
             .additional_data == older_day
         )
         assert (
-            config_with_interpolations
+            config
             .of.parameters[4]
             .additional_data == prev_month
         )
         assert (
-            config_with_interpolations
+            config
             .of.parameters[5]
             .additional_data == prev_day
         )
 
 
-def config_with_invalid_interpolations():
+INVALID_INTERPOLATION_CONFIGS_YAML = [
     '''
-    Provides configuration object with interpolation expressions having invalid
-    argument specified.
+    meter:
+      port: dummy_serial
+      password: dummy_password
+    mqtt:
+      host: a_mqtt_host
+      user: a_mqtt_user
+      password: mqtt_dummy_password
+    parameters:
+        # Argument with closing bracket missing
+        - name: dummy_param1
+          address: dummy_addr1
+          device_class: dummy_class
+          state_class: dummy_state
+          unit: dummy
+          additional_data: '{{ energomera_prev_day ( }}'
+    ''',
     '''
-    interpolated_configs_yaml = [
-        '''
-        meter:
-          port: dummy_serial
-          password: dummy_password
-        mqtt:
-          host: a_mqtt_host
-          user: a_mqtt_user
-          password: mqtt_dummy_password
-        parameters:
-            # Argument with closing bracket missing
-            - name: dummy_param1
-              address: dummy_addr1
-              device_class: dummy_class
-              state_class: dummy_state
-              unit: dummy
-              additional_data: '{{ energomera_prev_day ( }}'
-        ''',
-        '''
-        meter:
-          port: dummy_serial
-          password: dummy_password
-        mqtt:
-          host: a_mqtt_host
-          user: a_mqtt_user
-          password: mqtt_dummy_password
-        parameters:
-            # Argument with opening bracket missing
-            - name: dummy_param2
-              address: dummy_addr1
-              device_class: dummy_class
-              state_class: dummy_state
-              unit: dummy
-              additional_data: '{{ energomera_prev_day ) }}'
-        ''',
-        '''
-        meter:
-          port: dummy_serial
-          password: dummy_password
-        mqtt:
-          host: a_mqtt_host
-          user: a_mqtt_user
-          password: mqtt_dummy_password
-        parameters:
-            # Non-numeric argument
-            - name: dummy_param3
-              address: dummy_addr1
-              device_class: dummy_class
-              state_class: dummy_state
-              unit: dummy
-              additional_data: '{{ energomera_prev_day (non-numeric) }}'
-        ''',
-    ]
-    for config_yaml in interpolated_configs_yaml:
-        with patch('builtins.open', mock_open(read_data=config_yaml)):
-            config = EnergomeraConfig(config_file='dummy')
-        yield config
+    meter:
+      port: dummy_serial
+      password: dummy_password
+    mqtt:
+      host: a_mqtt_host
+      user: a_mqtt_user
+      password: mqtt_dummy_password
+    parameters:
+        # Argument with opening bracket missing
+        - name: dummy_param2
+          address: dummy_addr1
+          device_class: dummy_class
+          state_class: dummy_state
+          unit: dummy
+          additional_data: '{{ energomera_prev_day ) }}'
+    ''',
+    '''
+    meter:
+      port: dummy_serial
+      password: dummy_password
+    mqtt:
+      host: a_mqtt_host
+      user: a_mqtt_user
+      password: mqtt_dummy_password
+    parameters:
+        # Non-numeric argument
+        - name: dummy_param3
+          address: dummy_addr1
+          device_class: dummy_class
+          state_class: dummy_state
+          unit: dummy
+          additional_data: '{{ energomera_prev_day (non-numeric) }}'
+    ''',
+]
 
 
-# `pylint` mistekenly treats fixture as re-definition
-# pylint: disable=redefined-outer-name
-@pytest.mark.parametrize('config', config_with_invalid_interpolations())
-def test_config_interpolation_invalid(config):
+@pytest.mark.usefixtures('mock_config')
+@pytest.mark.parametrize('config_yaml', INVALID_INTERPOLATION_CONFIGS_YAML)
+def test_config_interpolation_invalid(config_yaml):
     '''
     Verifies the expression interpolation raises exception processing the
     argument having invalid format.
     '''
     with pytest.raises(EnergomeraConfigError):
+        config = EnergomeraConfig(content=config_yaml)
         config.interpolate()
 
 
@@ -372,6 +357,7 @@ def test_config_interpolation_expr_param_re_no_groups():
     Verifies processing interpolation expression with associated regexp having
     no capturing groups results in default value.
     '''
+    # pylint:disable=protected-access
     res = EnergomeraConfig._energomera_re_expr_param_int(
         re.match('dummy pattern', 'dummy pattern'), 100
     )
@@ -384,6 +370,7 @@ def test_config_interpolation_expr_param_re_no_match():
     expression arguments directly with non-matching regex.
     '''
     with pytest.raises(AssertionError):
+        # pylint:disable=protected-access
         EnergomeraConfig._energomera_re_expr_param_int(
             re.match('dummy pattern', 'dummy non-matching value'), 100
         )
