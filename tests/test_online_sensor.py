@@ -30,7 +30,6 @@ import json
 from unittest.mock import patch, call
 import docker
 import pytest
-from test_energomera import mock_serial, mock_mqtt, mock_config
 from energomera_hass_mqtt.mqtt_client import MqttClient
 from energomera_hass_mqtt.main import async_main, main
 
@@ -160,11 +159,12 @@ async def read_online_sensor_states(code=None, timeout=5):
     return online_sensor_states
 
 
+@pytest.mark.usefixtures('mock_config', 'mock_serial')
 @pytest.mark.asyncio
 async def test_online_sensor_last_will(
     # `pylint` mistekenly treats fixture as re-definition
     # pylint: disable=redefined-outer-name, unused-argument
-    mqtt_broker
+    mqtt_broker,
 ):
     '''
     Tests online sensor for properly utilizing MQTT last will to set the state
@@ -182,27 +182,26 @@ async def test_online_sensor_last_will(
         # pylint: disable=protected-access
         self._client = MqttClient(hostname='dummy')._client
 
-    with mock_config():
-        with mock_serial():
-            # Replace MQTT disconnect with the function to forcibly shutdown
-            # MQTT client sockets, simulating unclean disconnect
-            with patch.object(MqttClient, 'disconnect', mqtt_client_destroy):
-                # Setup MQTT keep-alive to a minimal value, so that unclean
-                # disconnect will result in last will message being sent upon
-                # keep-alive elapses
-                with patch.object(MqttClient, '_keepalive', 1):
-                    await async_main()
+    # Replace MQTT disconnect with the function to forcibly shutdown
+    # MQTT client sockets, simulating unclean disconnect
+    with patch.object(MqttClient, 'disconnect', mqtt_client_destroy):
+        # Setup MQTT keep-alive to a minimal value, so that unclean
+        # disconnect will result in last will message being sent upon
+        # keep-alive elapses
+        with patch.object(MqttClient, '_keepalive', 1):
+            await async_main()
 
     online_sensor_states = await read_online_sensor_states()
     # Verify the last sensor state should be OFF during unclean shutdown
     assert online_sensor_states.pop() == json.dumps({'value': 'OFF'})
 
 
+@pytest.mark.usefixtures('mock_config', 'mock_serial')
 @pytest.mark.asyncio
 async def test_online_sensor_normal_run(
     # `pylint` mistekenly treats fixture as re-definition
     # pylint: disable=redefined-outer-name, unused-argument
-    mqtt_broker
+    mqtt_broker,
 ):
     '''
     Tests online sensor for properly reflecting online sensors state during
@@ -211,9 +210,7 @@ async def test_online_sensor_normal_run(
 
     # Attempt to receive online sensor state upon normal program run
     async def normal_run():
-        with mock_config():
-            with mock_serial():
-                await async_main()
+        await async_main()
 
     online_sensor_states = await read_online_sensor_states(normal_run)
     # There should be two messages for online sensor - first with 'ON'
@@ -226,22 +223,18 @@ async def test_online_sensor_normal_run(
     ]
 
 
-def test_online_sensor():
+@pytest.mark.usefixtures('mock_config', 'mock_serial')
+@pytest.mark.serial_simulate_timeout(True)
+def test_online_sensor(mock_mqtt):
     '''
     Tests for handling pseudo online sensor under timeout condition.
     '''
 
-    mqtt_publish_call_args_for_timeout = []
-    with mock_serial(simulate_timeout=True):
-        with mock_mqtt() as mqtt_mocks:
-            with mock_config():
-                main()
-                mqtt_publish_call_args_for_timeout = (
-                    mqtt_mocks['publish'].call_args_list
-                )
+    main()
 
+    # Verify the last call to MQTT contains online sensor being OFF
     assert call(
         topic='homeassistant/binary_sensor/CE301_00123456'
         '/CE301_00123456_IS_ONLINE/state',
         payload=json.dumps({'value': 'OFF'}),
-    ) in mqtt_publish_call_args_for_timeout
+    ) == mock_mqtt['publish'].call_args_list[-1]

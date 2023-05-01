@@ -15,6 +15,9 @@ log_cli_level = "error"
 
 markers = [
     "mqtt_broker_users",
+    "serial_simulate_timeout",
+    "serial_exchange",
+    "config_yaml"
 ]
 
 [tool.pylint.main]

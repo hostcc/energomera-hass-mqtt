@@ -188,6 +188,19 @@ class EnergomeraConfig:
             ],
         })
 
+    @staticmethod
+    def _read_config(config_file):
+        """
+        Reads configuration file.
+
+        :param str config_file: Name of configuration file
+        :return str: Configuration file contents
+        """
+        with open(config_file, encoding='ascii') as file:
+            content = file.read()
+
+        return content
+
     def __init__(self, config_file=None, content=None):
         """
         Initializes configuration state either from file or content string.
@@ -202,8 +215,7 @@ class EnergomeraConfig:
 
         try:
             if not content:
-                with open(config_file, encoding='ascii') as file:
-                    content = file.read()
+                content = self._read_config(config_file)
 
             config = yaml.safe_load(content)
         except (yaml.YAMLError, OSError) as exc:
