@@ -86,6 +86,8 @@ Configuration file is in YAML format and supports following elements:
         mqtt:
             # (string) Hostname or IP address of MQTT broker
             host:
+            # (number) default ``1883``: Port of MQTT broker
+            port:
             # (string) optional: MQTT user name
             user:
             # (string) optional: MQTT user password

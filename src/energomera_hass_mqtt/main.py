@@ -24,7 +24,8 @@ CLI interface to :class:`EnergomeraHassMqtt` class
 import argparse
 import logging
 import asyncio
-from . import EnergomeraHassMqtt, EnergomeraConfig
+from .config import EnergomeraConfig
+from .hass_mqtt import EnergomeraHassMqtt
 from .const import DEFAULT_CONFIG_FILE
 
 
@@ -45,13 +46,19 @@ def process_cmdline():
     return parser.parse_args()
 
 
-async def async_main():
+async def async_main(mqtt_port=None):
     """
     Primary async entry point.
+
+    :param int mqtt_port: Port of MQTT broker overriding one from config, only
+     used by tests since MQTT broker there has random port.
     """
     args = process_cmdline()
 
     config = EnergomeraConfig(args.config_file)
+    # Override port of MQTT broker (if provided)
+    if mqtt_port:
+        config.of.mqtt.port = mqtt_port
     logging.basicConfig(level=config.logging_level)
     client = EnergomeraHassMqtt(config)
     while True:

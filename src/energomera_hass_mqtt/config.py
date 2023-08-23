@@ -168,6 +168,7 @@ class EnergomeraConfig:
             },
             'mqtt': {
                 'host': str,
+                Optional('port', default=DEFAULT_CONFIG.mqtt.port): int,
                 Optional('user', default=None): str,
                 Optional('password', default=None): str,
                 Optional('hass_discovery_prefix',
