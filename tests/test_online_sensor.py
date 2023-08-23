@@ -143,7 +143,11 @@ def mqtt_broker(request, unused_tcp_port):  # pylint: disable=too-many-locals
     print(f"\nDestroying MQTT broker container (ID {container.id})")
     # Clean the container up once the test completes
     container.stop()
-    container.wait()
+    try:
+        container.wait()
+    # Ignore exceptio if the container has gone already
+    except docker.errors.NotFound:
+        pass
     shutil.rmtree(tmpdir, ignore_errors=True)
 
 
