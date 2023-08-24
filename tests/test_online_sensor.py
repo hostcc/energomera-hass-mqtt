@@ -151,7 +151,7 @@ def mqtt_broker(request, unused_tcp_port):  # pylint: disable=too-many-locals
     shutil.rmtree(tmpdir, ignore_errors=True)
 
 
-async def read_online_sensor_states(port, code=None, timeout=5):
+async def read_online_sensor_states(port, code, timeout=5):
     '''
     Retrieves online sensor states from MQTT broker during alotted time frame -
     traditional MQTT client subscribe() awaits for the messages indefinitely
@@ -174,10 +174,9 @@ async def read_online_sensor_states(port, code=None, timeout=5):
                         sensor_states.append(msg.payload.decode())
 
     task = asyncio.create_task(listen(online_sensor_states))
-    # Execute optional code (e.g. normal program run) before awaiting for
+    # Execute code (e.g. normal program run) before awaiting for
     # sensor states
-    if code:
-        await code()
+    await code()
 
     # Wait for configured time to allow sensor states to be retrieved
     try:
@@ -202,35 +201,42 @@ async def test_online_sensor_last_will(
     Tests online sensor for properly utilizing MQTT last will to set the state
     if the code doesn't disconnect cleanly
     '''
-    async def mqtt_client_destroy(self):
-        '''
-        Function to shutdown MQTT client sockets instead of doing clean
-        disconnect
-        '''
-        # This triggers call to `_reset_sockets()` in Paho MQTT
-        del self._client
-        # Re-instantiate fresh Paho MQTT client so Async MQTT won't trip over
-        # missing `_client` attribute
-        # pylint: disable=protected-access
-        self._client = MqttClient(
-            hostname='dummy', port=mqtt_broker['port']
-        )._client
+    async def run():
+        async def mqtt_client_destroy(self):
+            '''
+            Function to shutdown MQTT client sockets instead of doing clean
+            disconnect
+            '''
+            # This triggers call to `_reset_sockets()` in Paho MQTT
+            del self._client
+            # Re-instantiate fresh Paho MQTT client so Async MQTT won't trip
+            # over missing `_client` attribute
+            # pylint: disable=protected-access
+            self._client = MqttClient(
+                hostname='dummy', port=mqtt_broker['port']
+            )._client
 
-    # Replace MQTT disconnect with the function to forcibly shutdown
-    # MQTT client sockets, simulating unclean disconnect
-    with patch.object(MqttClient, 'disconnect', mqtt_client_destroy):
-        # Setup MQTT keep-alive to a minimal value, so that unclean
-        # disconnect will result in last will message being sent upon
-        # keep-alive elapses
-        with patch.object(MqttClient, '_keepalive', 1):
-            await async_main(mqtt_port=mqtt_broker['port'])
+        # Replace MQTT disconnect with the function to forcibly shutdown
+        # MQTT client sockets, simulating unclean disconnect
+        with patch.object(MqttClient, 'disconnect', mqtt_client_destroy):
+            # Setup MQTT keep-alive to a minimal value, so that unclean
+            # disconnect will result in last will message being sent upon
+            # keep-alive elapses
+            with patch.object(MqttClient, '_keepalive', 1):
+                await async_main(mqtt_port=mqtt_broker['port'])
 
     online_sensor_states = await read_online_sensor_states(
-        port=mqtt_broker['port']
+        code=run, port=mqtt_broker['port']
     )
-    # Verify the last sensor state should be OFF during unclean shutdown
-    assert len(online_sensor_states) == 1
-    assert online_sensor_states.pop() == json.dumps({'value': 'OFF'})
+    # Verify the sensor state to have `ON`/`OFF`/`OFF` sequence, that's it -
+    # first two come from normal execution and termination, while the latter
+    # comes from unclean MQTT client shutdown simulated above
+    assert len(online_sensor_states) == 3
+    assert online_sensor_states == [
+        json.dumps({'value': 'ON'}),
+        json.dumps({'value': 'OFF'}),
+        json.dumps({'value': 'OFF'}),
+    ]
 
 
 @pytest.mark.usefixtures('mock_config', 'mock_serial')
@@ -246,11 +252,11 @@ async def test_online_sensor_normal_run(
     '''
 
     # Attempt to receive online sensor state upon normal program run
-    async def normal_run():
+    async def run():
         await async_main(mqtt_port=mqtt_broker['port'])
 
     online_sensor_states = await read_online_sensor_states(
-        code=normal_run, port=mqtt_broker['port']
+        code=run, port=mqtt_broker['port']
     )
     # There should be two messages for online sensor - first with 'ON'
     # value during the program run, and another with 'OFF' value
