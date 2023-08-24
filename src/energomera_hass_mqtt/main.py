@@ -65,6 +65,9 @@ async def async_main(mqtt_port=None):
         config.interpolate()
         try:
             await client.iec_read_admin()
+        # Propagate assertion exceptions, mostly from tests
+        except AssertionError as exc:
+            raise exc
         except Exception as exc:  # pylint: disable=broad-except
             logging.error('Got exception while processing,'
                           ' skipping to next cycle: %s', exc, exc_info=True)
