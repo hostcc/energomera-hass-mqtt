@@ -34,6 +34,7 @@ VALID_CONFIG_YAML = '''
       password: dummy_password
     mqtt:
       host: a_mqtt_host
+      port: 1888
       user: a_mqtt_user
       password: mqtt_dummy_password
     parameters:
@@ -65,6 +66,7 @@ def test_valid_config_file():
         },
         'mqtt': {
             'host': 'a_mqtt_host',
+            'port': 1888,
             'user': 'a_mqtt_user',
             'password': 'mqtt_dummy_password',
             'hass_discovery_prefix': 'homeassistant',

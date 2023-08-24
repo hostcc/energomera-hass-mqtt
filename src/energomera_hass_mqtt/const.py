@@ -37,6 +37,7 @@ DEFAULT_CONFIG = Dict(
         timeout=30,
     ),
     mqtt=dict(
+        port=1883,
         tls=True,
     ),
     parameters=[
