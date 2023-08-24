@@ -1048,4 +1048,9 @@ def mock_mqtt():
     with patch.multiple(MqttClient,
                         publish=DEFAULT, connect=DEFAULT,
                         new_callable=AsyncMock) as mocks:
-        yield mocks
+        # Python 3.7 can't properly distinguish between regular and async calls
+        # using `MagicMock` or `AsyncMock` respectively, so patch the regular
+        # method separately
+        with patch.object(MqttClient, 'will_set') as will_mock:
+            mocks.update({'will_set': will_mock})
+            yield mocks
