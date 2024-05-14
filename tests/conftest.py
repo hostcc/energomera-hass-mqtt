@@ -1046,7 +1046,7 @@ def mock_mqtt():
     '''
     # Mock the calls we interested in
     with patch.multiple(MqttClient,
-                        publish=DEFAULT, connect=DEFAULT,
+                        publish=DEFAULT, __aenter__=DEFAULT,
                         new_callable=AsyncMock) as mocks:
         # Python 3.7 can't properly distinguish between regular and async calls
         # using `MagicMock` or `AsyncMock` respectively, so patch the regular

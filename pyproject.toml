@@ -22,6 +22,8 @@ markers = [
 
 [tool.pylint.main]
 load-plugins = "pylint.extensions.no_self_use"
+# Newer `pylint` raises errors on using `dict()`, ignore those for now
+disable = "use-dict-literal"
 
 [tool.pylint.typecheck]
 signature-mutators = [

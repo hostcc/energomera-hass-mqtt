@@ -166,9 +166,9 @@ class EnergomeraHassMqtt:
             # connecting to the broker
             await self.set_online_sensor(False, setup_only=True)
             # The connection to MQTT broker is instantiated only once, if not
-            # connected previously.  See `MqttClient.connect()` for more
-            # details
-            await self._mqtt_client.connect()
+            # connected previously.
+            # pylint:disable=unnecessary-dunder-call
+            await self._mqtt_client.__aenter__()
             # Process parameters requested
             for param in self._config.of.parameters:
                 iec_item = self.iec_read_values(
@@ -209,7 +209,7 @@ class EnergomeraHassMqtt:
         """
         try:
             await self.set_online_sensor(False)
-            await self._mqtt_client.disconnect()
+            await self._mqtt_client.__aexit__(None, None, None)
         except Exception:  # pylint: disable=broad-except
             pass
 
