@@ -41,6 +41,34 @@ class MqttClient(aiomqtt.Client):
         self._will_set = 'will' in kwargs
         super().__init__(logger=_LOGGER, *args, **kwargs)
 
+    async def connect(self):
+        """
+        Connects to MQTT broker using `__aenter__` method of the base class as
+        recommended in
+        https://github.com/sbtinstruments/aiomqtt/blob/main/docs/migration-guide-v2.md.
+        Multiple calls will result only in single call to `__aenter__()` method
+        of parent class if the MQTT client needs a connection (not being
+        connected or got disconnected), to allow the method to be called within
+        a process loop with no risk of hitting non-reentrant error from base
+        class.
+        """
+        if self._lock.locked():
+            _LOGGER.debug(
+                'MQTT client is already connected, skipping subsequent attempt'
+            )
+            return
+
+        # pylint:disable=unnecessary-dunder-call
+        await self.__aenter__()
+
+    async def disconnect(self):
+        """
+        Disconnects from MQTT broker using `__aexit__` method of the base class
+        as per migration guide above.
+        """
+        # pylint:disable=unnecessary-dunder-call
+        await self.__aexit__(None, None, None)
+
     def will_set(self, *args, **kwargs):
         """
         Allows setting last will to the underlying MQTT client.

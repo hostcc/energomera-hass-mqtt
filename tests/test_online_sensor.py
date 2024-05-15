@@ -47,7 +47,7 @@ def test_online_sensor(mock_mqtt):
             mock_mqtt['will_set'].call_args_list[-1] == online_sensor_off_call
         )
         return DEFAULT
-    mock_mqtt['__aenter__'].side_effect = trace_connect
+    mock_mqtt['connect'].side_effect = trace_connect
 
     # Perform a normal run
     main()
