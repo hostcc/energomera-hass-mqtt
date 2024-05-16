@@ -10,12 +10,7 @@ from unittest.mock import patch, call, DEFAULT
 import pytest
 import iec62056_21.transports
 from energomera_hass_mqtt.mqtt_client import MqttClient
-try:
-    from unittest.mock import AsyncMock
-except ImportError:
-    # AsyncMock introduced in Python 3.8, import from alternative package if
-    # older
-    from mock import AsyncMock
+from unittest.mock import AsyncMock
 
 
 SERIAL_EXCHANGE_COMPLETE = [
@@ -1046,11 +1041,6 @@ def mock_mqtt():
     '''
     # Mock the calls we interested in
     with patch.multiple(MqttClient,
-                        publish=DEFAULT, connect=DEFAULT,
+                        publish=DEFAULT, connect=DEFAULT, will_set=DEFAULT,
                         new_callable=AsyncMock) as mocks:
-        # Python 3.7 can't properly distinguish between regular and async calls
-        # using `MagicMock` or `AsyncMock` respectively, so patch the regular
-        # method separately
-        with patch.object(MqttClient, 'will_set') as will_mock:
-            mocks.update({'will_set': will_mock})
-            yield mocks
+        yield mocks

@@ -166,8 +166,7 @@ class EnergomeraHassMqtt:
             # connecting to the broker
             await self.set_online_sensor(False, setup_only=True)
             # The connection to MQTT broker is instantiated only once, if not
-            # connected previously.  See `MqttClient.connect()` for more
-            # details
+            # connected previously.
             await self._mqtt_client.connect()
             # Process parameters requested
             for param in self._config.of.parameters:

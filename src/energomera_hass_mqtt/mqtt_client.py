@@ -19,23 +19,17 @@
 # SOFTWARE.
 
 """
-The package provides additional functionality over `asyncio_mqtt`.
+The package provides additional functionality over `aiomqtt`.
 """
 import logging
-import asyncio_mqtt
+import aiomqtt
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class MqttClient(asyncio_mqtt.Client):
+class MqttClient(aiomqtt.Client):
     """
-    Class attribute allowing to provide MQTT keepalive down to MQTT client.
-    Used only by tests at the moment, thus no interface controlling the
-    attribute is provided.
-    """
-    _keepalive = None
-    """
-    The class extends the `asyncio_mqtt.Client` to provide better convenience
+    The class extends the `aiomqtt.Client` to provide better convenience
     working with last wills. Namely, the original class only allows setting the
     last will thru its constructor, while the `EnergomeraHassMqtt` consuming it
     only has required property for that around actual publish calls.
@@ -45,39 +39,35 @@ class MqttClient(asyncio_mqtt.Client):
     """
     def __init__(self, *args, **kwargs):
         self._will_set = 'will' in kwargs
-        # Pass keepalive option down to parent class if set
-        if self._keepalive:
-            kwargs['keepalive'] = self._keepalive
         super().__init__(logger=_LOGGER, *args, **kwargs)
 
-    async def connect(self, *args, **kwargs):
+    async def connect(self):
         """
-        Connects to MQTT broker.
-        Multiple calls will result only in single call to `connect()` method of
-        parent class if the MQTT client needs a connection (not being connected
-        or got disconnected), to allow the method to be called within a process
-        loop with no risk of constantly reinitializing MQTT broker connection.
-
-        :param args: Pass-through positional arguments for parent class
-        :param kwargs: Pass-through keyword arguments for parent class
-
+        Connects to MQTT broker using `__aenter__` method of the base class as
+        recommended in
+        https://github.com/sbtinstruments/aiomqtt/blob/main/docs/migration-guide-v2.md.
+        Multiple calls will result only in single call to `__aenter__()` method
+        of parent class if the MQTT client needs a connection (not being
+        connected or got disconnected), to allow the method to be called within
+        a process loop with no risk of hitting non-reentrant error from base
+        class.
         """
-        # Using combination of `self._connected` and `self._disconnected` (both
-        # inherited from `asyncio_mqtt.client`) to detect of MQTT client needs
-        # a reconnection upon a network error isn't reliable - the former isn't
-        # finished even after a disconnect, while the latter stays with
-        # exception after a successfull reconnect. Neither
-        # `self._client.is_connected` (from Paho client) is - is returns True
-        # if socket is disconnected due to network error. Only testing for
-        # `self._client.socket()` (from Paho client as well) fits the purpose -
-        # None indicates the client needs `connect`
-        if self._client.socket():
+        if self._lock.locked():
             _LOGGER.debug(
                 'MQTT client is already connected, skipping subsequent attempt'
             )
             return
 
-        await super().connect(*args, *kwargs)
+        # pylint:disable=unnecessary-dunder-call
+        await self.__aenter__()
+
+    async def disconnect(self):
+        """
+        Disconnects from MQTT broker using `__aexit__` method of the base class
+        as per migration guide above.
+        """
+        # pylint:disable=unnecessary-dunder-call
+        await self.__aexit__(None, None, None)
 
     def will_set(self, *args, **kwargs):
         """
