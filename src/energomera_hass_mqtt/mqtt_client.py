@@ -52,7 +52,16 @@ class MqttClient(aiomqtt.Client):
         a process loop with no risk of hitting non-reentrant error from base
         class.
         """
-        if self._lock.locked():
+        # Using combination of `self._connected` and `self._disconnected` (both
+        # inherited from `asyncio_mqtt.client`) to detect of MQTT client needs
+        # a reconnection upon a network error isn't reliable - the former isn't
+        # finished even after a disconnect, while the latter stays with
+        # exception after a successfull reconnect. Neither
+        # `self._client.is_connected` (from Paho client) is - is returns True
+        # if socket is disconnected due to network error. Only testing for
+        # `self._client.socket()` (from Paho client as well) fits the purpose -
+        # None indicates the client needs `connect`
+        if self._client.socket():
             _LOGGER.debug(
                 'MQTT client is already connected, skipping subsequent attempt'
             )
