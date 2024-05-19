@@ -135,7 +135,12 @@ jobs:
           images: ghcr.io/${{ github.repository }}
           tags: |
             type=pep440,pattern={{raw}},value=${{ needs.tests.outputs.version }}
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{
+              github.event_name == 'release'
+              && github.event.action == 'published'
+              && (github.event.release.target_commitish == 'main'
+              || github.event.release.target_commitish == 'master')
+            }}
             type=ref,event=pr
             type=edge
 
