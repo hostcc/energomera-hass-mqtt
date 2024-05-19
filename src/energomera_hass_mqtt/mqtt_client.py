@@ -67,6 +67,10 @@ class MqttClient(aiomqtt.Client):
             )
             return
 
+        # Disconnected client could still hold its lock, release it first
+        await self.disconnect()
+
+        # And then connect
         # pylint:disable=unnecessary-dunder-call
         await self.__aenter__()
 

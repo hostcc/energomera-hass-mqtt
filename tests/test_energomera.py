@@ -39,7 +39,7 @@ def test_normal_run(mock_serial, mock_mqtt):
     )
 
 
-@pytest.mark.usefixtures('mock_serial', 'mock_config')
+@pytest.mark.usefixtures('mock_serial', 'mock_config', 'mock_mqtt')
 @pytest.mark.serial_simulate_timeout(True)
 def test_timeout():
     '''
