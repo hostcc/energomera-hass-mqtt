@@ -134,7 +134,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=semver,pattern={{raw}},value=${{ needs.tests.outputs.version }}
+            type=pep440,pattern={{raw}},value=${{ needs.tests.outputs.version }}
             type=raw,value=latest,enable={{is_default_branch}}
             type=ref,event=pr
             type=edge
@@ -154,3 +154,4 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
