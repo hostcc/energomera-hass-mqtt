@@ -22,9 +22,32 @@
 The package provides additional functionality over `aiomqtt`.
 """
 import logging
+import asyncio
 import aiomqtt
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class DummyLock(asyncio.Lock):
+    '''
+    Class providing dummy functionality of `asyncio.Lock` - that is, no locking
+    is actually done and it reports being always unlocked.
+    '''
+    def locked(self):
+        '''
+        Provides status of the lock being always unlocked.
+        '''
+        return False
+
+    async def acquire(self):
+        '''
+        Does nothing.
+        '''
+
+    def release(self):
+        '''
+        Does nothing.
+        '''
 
 
 class MqttClient(aiomqtt.Client):
@@ -40,6 +63,9 @@ class MqttClient(aiomqtt.Client):
     def __init__(self, *args, **kwargs):
         self._will_set = 'will' in kwargs
         super().__init__(logger=_LOGGER, *args, **kwargs)
+        # Skip locking in `__aenter__` and `__aexit__` - those aren't used with
+        # context manager, rather as regular methods, especially the former
+        self._lock = DummyLock()
 
     async def connect(self):
         """
@@ -67,10 +93,6 @@ class MqttClient(aiomqtt.Client):
             )
             return
 
-        # Disconnected client could still hold its lock, release it first
-        await self.disconnect()
-
-        # And then connect
         # pylint:disable=unnecessary-dunder-call
         await self.__aenter__()
 
