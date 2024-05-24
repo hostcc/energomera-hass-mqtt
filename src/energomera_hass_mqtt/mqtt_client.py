@@ -22,9 +22,32 @@
 The package provides additional functionality over `aiomqtt`.
 """
 import logging
+import asyncio
 import aiomqtt
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class DummyLock(asyncio.Lock):
+    '''
+    Class providing dummy functionality of `asyncio.Lock` - that is, no locking
+    is actually done and it reports being always unlocked.
+    '''
+    def locked(self):
+        '''
+        Provides status of the lock being always unlocked.
+        '''
+        return False
+
+    async def acquire(self):
+        '''
+        Does nothing.
+        '''
+
+    def release(self):
+        '''
+        Does nothing.
+        '''
 
 
 class MqttClient(aiomqtt.Client):
@@ -40,6 +63,9 @@ class MqttClient(aiomqtt.Client):
     def __init__(self, *args, **kwargs):
         self._will_set = 'will' in kwargs
         super().__init__(logger=_LOGGER, *args, **kwargs)
+        # Skip locking in `__aenter__` and `__aexit__` - those aren't used with
+        # context manager, rather as regular methods, especially the former
+        self._lock = DummyLock()
 
     async def connect(self):
         """
@@ -52,7 +78,16 @@ class MqttClient(aiomqtt.Client):
         a process loop with no risk of hitting non-reentrant error from base
         class.
         """
-        if self._lock.locked():
+        # Using combination of `self._connected` and `self._disconnected` (both
+        # inherited from `asyncio_mqtt.client`) to detect of MQTT client needs
+        # a reconnection upon a network error isn't reliable - the former isn't
+        # finished even after a disconnect, while the latter stays with
+        # exception after a successfull reconnect. Neither
+        # `self._client.is_connected` (from Paho client) is - is returns True
+        # if socket is disconnected due to network error. Only testing for
+        # `self._client.socket()` (from Paho client as well) fits the purpose -
+        # None indicates the client needs `connect`
+        if self._client.socket():
             _LOGGER.debug(
                 'MQTT client is already connected, skipping subsequent attempt'
             )

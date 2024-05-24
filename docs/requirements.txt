@@ -1,6 +1,6 @@
 sphinx-rtd-theme
 git+https://github.com/hostcc/iec62056-21.git@feature/transport-improvements
-asyncio-mqtt
+aiomqtt
 pyyaml
 schema
 addict
