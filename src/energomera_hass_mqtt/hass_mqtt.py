@@ -25,6 +25,7 @@ HomeAssistant using MQTT.
 
 import logging
 import ssl
+from os import getenv
 
 from iec62056_21.messages import CommandMessage
 from iec62056_21.client import Iec6205621Client
@@ -95,9 +96,11 @@ class EnergomeraHassMqtt:
             mqtt_tls_context = ssl.SSLContext()
 
         self._mqtt_client = MqttClient(
-            hostname=config.of.mqtt.host, port=config.of.mqtt.port,
-            username=config.of.mqtt.user,
-            password=config.of.mqtt.password, tls_context=mqtt_tls_context,
+            hostname=getenv('MQTT_HOST', config.of.mqtt.host),
+            port=getenv('MQTT_PORT', config.of.mqtt.port),
+            username=getenv('MQTT_USER', config.of.mqtt.user),
+            password=getenv('MQTT_PASSWORD', config.of.mqtt.password),
+            tls_context=mqtt_tls_context,
             # Set MQTT keepalive to interval between meter interaction cycles,
             # so that MQTT broker will consider the client disconnected upon
             # that internal if no MQTT traffic is seen from the client.

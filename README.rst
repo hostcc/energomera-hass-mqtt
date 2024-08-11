@@ -146,6 +146,16 @@ timestamp returned for the date being 5 days ago. An use case for that might be
 intermittent connectivity to the meter where the readings aren't sent to
 collecting system on cadence thus have gaps in data points.
 
+Environment variables
+=====================
+
+Following environment variables might be provided overriding corresponding
+configuration file entries:
+
+* ``MQTT_HOST``: Host or IP address of MQTT broker
+* ``MQTT_PORT``: Same but for the port
+* ``MQTT_USER``: User name to connect to MQTT broker with
+* ``MQTT_PASSWORD``: Same but for the password
 
 ``systemd`` support
 ===================
