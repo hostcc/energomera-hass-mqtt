@@ -38,14 +38,6 @@ MockMqttT = Dict[str, Mock]
 MockSerialT = Dict[str, Mock]
 
 
-def re_match(pattern: str) -> str:
-    '''
-    Helper function to match regular expressions in mock calls.
-    '''
-    print(f'called: {str}')
-    return pattern
-
-
 SERIAL_EXCHANGE_BASE = [
     {
         'receive_bytes': b'/?!\r\n',
