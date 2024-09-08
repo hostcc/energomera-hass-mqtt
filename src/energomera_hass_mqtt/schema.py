@@ -89,12 +89,13 @@ class ConfigParameterSchema(BaseModel):
     """
     address: str
     name: Union[str, List[str]]
-    device_class: str
+    device_class: Optional[str] = None
     state_class: Optional[str] = None
     unit: Optional[str] = None
     additional_data: Optional[str] = None
     entity_name: Optional[str] = None
     response_idx: Optional[int] = None
+    entity_category: Optional[str] = None
 
 
 class ConfigSchema(BaseModel):

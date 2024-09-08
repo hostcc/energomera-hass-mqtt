@@ -75,16 +75,15 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
         self._model = model
         self._sw_version = sw_version
         self._serial_number = serial_number
-        self._state_last_will_payload: Optional[bool] = None
 
-    def set_state_last_will_payload(self, value: bool) -> None:
+    @property
+    def state_last_will_payload(self) -> Optional[str]:
         """
-        Stores there value of the last will payload for the item, i.e. sent by
-        the MQTT broker if the client disconnects uncleanly.
+        Stores value of last will payload to be set for MQTT client.
 
-        :param value: Value for last will payload
+        Should be implemented by subclasses.
         """
-        self._state_last_will_payload = value
+        return None
 
     @property
     def iec_item(self) -> List[IecDataSet]:
@@ -245,9 +244,9 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
                               " at '%s' address",
                               self._hass_item_name, self._config_param.address)
                 # Set last will for MQTT if specified for the item
-                if self._state_last_will_payload is not None:
+                if self.state_last_will_payload is not None:
                     will_payload = self.hass_state_payload(
-                        value=str(self._state_last_will_payload)
+                        value=self.state_last_will_payload
                     )
                     json_will_payload = json.dumps(will_payload)
 

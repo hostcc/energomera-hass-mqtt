@@ -28,6 +28,7 @@ import json
 import sys
 from functools import reduce
 from unittest.mock import patch, call, DEFAULT, AsyncMock, Mock
+from callee import Regex as CallRegexMatcher
 import pytest
 from pytest import FixtureRequest
 import iec62056_21.transports
@@ -35,6 +36,15 @@ from energomera_hass_mqtt.mqtt_client import MqttClient
 
 MockMqttT = Dict[str, Mock]
 MockSerialT = Dict[str, Mock]
+
+
+def re_match(pattern: str) -> str:
+    '''
+    Helper function to match regular expressions in mock calls.
+    '''
+    print(f'called: {str}')
+    return pattern
+
 
 SERIAL_EXCHANGE_BASE = [
     {
@@ -874,6 +884,33 @@ MQTT_PUBLISH_CALLS_COMPLETE = [
         topic='homeassistant/binary_sensor/CE301_00123456'
         '/CE301_00123456_IS_ONLINE/state',
         payload=json.dumps({'value': 'ON'}),
+    ),
+    call(
+        topic='homeassistant/sensor/CE301_00123456/'
+        'CE301_00123456_CYCLE_DURATION/config',
+        payload=json.dumps(
+            {
+                'name': 'Meter cycle duration',
+                'device': {
+                    'name': '00123456',
+                    'ids': 'CE301_00123456',
+                    'model': 'CE301',
+                    'sw_version': '12'
+                },
+                'unique_id': 'CE301_00123456_CYCLE_DURATION',
+                'object_id': 'CE301_00123456_CYCLE_DURATION',
+                'unit_of_measurement': 'ms',
+                'state_topic': 'homeassistant/sensor/CE301_00123456/'
+                               'CE301_00123456_CYCLE_DURATION/state',
+                'value_template': '{{ value_json.value }}'
+            }
+        ),
+        retain=True
+    ),
+    call(
+        topic='homeassistant/sensor/CE301_00123456/'
+        'CE301_00123456_CYCLE_DURATION/state',
+        payload=CallRegexMatcher('{"value": "[0-9.]+"}'),
     ),
     call(
         topic='homeassistant/binary_sensor/CE301_00123456'

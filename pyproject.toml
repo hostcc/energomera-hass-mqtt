@@ -36,3 +36,8 @@ signature-mutators = [
 # No typing support in the module
 module = "iec62056_21.*"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# No typing support in the module
+module = "callee.*"
+ignore_missing_imports = true

@@ -27,6 +27,7 @@ from typing import Optional, TYPE_CHECKING, cast, List
 import logging
 import ssl
 from os import getenv
+from time import time
 
 from iec62056_21.messages import CommandMessage, DataSet as IecDataSet
 from iec62056_21.client import Iec6205621Client
@@ -34,7 +35,7 @@ from iec62056_21.transports import SerialTransport
 from iec62056_21 import utils
 from .mqtt_client import MqttClient
 from .iec_hass_sensor import IecToHassSensor
-from .extra_sensors import PseudoBinarySensor
+from .extra_sensors import PseudoBinarySensor, PseudoSensor
 from .schema import ConfigParameterSchema
 from .exceptions import EnergomeraMeterError
 if TYPE_CHECKING:
@@ -177,6 +178,7 @@ class EnergomeraHassMqtt:
         Primary method to loop over the parameters requested and process them.
         """
 
+        start = time()
         try:
             _LOGGER.debug('Opening connection with meter')
             self._client.connect()
@@ -221,12 +223,14 @@ class EnergomeraHassMqtt:
             # End the session
             _LOGGER.debug('Closing session with meter')
             self._client.send_break()
-
         except TimeoutError as exc:
             await self.set_online_sensor(False)
             raise exc
         else:
             await self.set_online_sensor(True)
+            duration = time() - start
+            _LOGGER.debug('Cycle duration: %s ms', duration)
+            await self.set_duration_sensor(duration)
         finally:
             # Disconnect serial client ignoring possible
             # exceptions - it might have not been connected yet
@@ -278,5 +282,25 @@ class EnergomeraHassMqtt:
             serial_number=self._serial_number
         )
         # Set the last will of the MQTT client to the `state=False`
-        hass_item.set_state_last_will_payload(value=False)
+        hass_item.state_last_will_payload = False
         await hass_item.process(setup_only)
+
+    async def set_duration_sensor(self, value: float) -> None:
+        """
+        Adds a pseudo-sensor to HASS reflecting the duration of the meter
+        cycle.
+        """
+        # Add a pseudo-sensor
+        param = ConfigParameterSchema(
+            address='CYCLE_DURATION',
+            name='Meter cycle duration',
+            unit='ms',
+            entity_category='diagnostic',
+        )
+        hass_item = PseudoSensor[float](
+            mqtt_config=self._config.of.mqtt,
+            mqtt_client=self._mqtt_client, config_param=param,
+            value=value, model=self._model, sw_version=self._sw_version,
+            serial_number=self._serial_number
+        )
+        await hass_item.process()
