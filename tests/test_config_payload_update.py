@@ -4,60 +4,35 @@ Tests for handling HomeAssistant configuration payloads.
 import json
 from unittest.mock import call
 import pytest
+from conftest import (
+    CONFIG_YAML_BASE, MockMqttT, MockSerialT, SERIAL_EXCHANGE_BASE
+)
 from energomera_hass_mqtt.main import main
 
-serial_exchange = [
-    {
-        'receive_bytes': b'/?!\r\n',
-        'send_bytes': b'/EKT5CE301v12\r\n',
-    },
-    {
-        'receive_bytes': b'\x06051\r\n',
-        'send_bytes': b'\x01P0\x02(777777)\x03\x20',
-    },
-    {
-        'receive_bytes': b'\x01P1\x02(dummy)\x03\x03',
-        'send_bytes': b'\x06',
-    },
-    {
-        'receive_bytes': b'\x01R1\x02HELLO()\x03M',
-        'send_bytes': b'\x02HELLO(2,CE301,12,00123456,dummy)\r\n\x03\x01',
-    },
+serial_exchange = SERIAL_EXCHANGE_BASE + [
     {
         'receive_bytes': b'\x01R1\x02ET0PE()\x037',
         'send_bytes':
-            b'\x02ET0PE(16907.9477764)\r\n'
-            b'ET0PE(11504.3875082)\r\n'
-            b'ET0PE(3628.2698795)\r\n'
-            b'ET0PE(1775.2903887)\r\n'
+            b'\x02ET0PE(0.0)\r\n'
+            b'ET0PE(0.0)\r\n'
+            b'ET0PE(0.0)\r\n'
+            b'ET0PE(0.0)\r\n'
             b'ET0PE(0.0)\r\n'
             b'ET0PE(0.0)\r\n\x03\x04',
     },
     {
         'receive_bytes': b'\x01R1\x02ET0PE()\x037',
         'send_bytes':
-            b'\x02ET0PE(16907.9477764)\r\n'
-            b'ET0PE(11504.3875082)\r\n'
-            b'ET0PE(3628.2698795)\r\n'
-            b'ET0PE(1775.2903887)\r\n'
+            b'\x02ET0PE(0.0)\r\n'
+            b'ET0PE(0.0)\r\n'
+            b'ET0PE(0.0)\r\n'
+            b'ET0PE(0.0)\r\n'
             b'ET0PE(0.0)\r\n'
             b'ET0PE(0.0)\r\n\x03\x04',
     },
 ]
 
-CONFIG_YAML = '''
-    general:
-        oneshot: true
-    meter:
-      port: dummy_serial
-      password: dummy
-      timeout: 1
-    mqtt:
-      # This is important as Docker-backed tests spawn the broker exposed
-      # on the localhost
-      host: 127.0.0.1
-      user: mqtt_dummy_user
-      password: mqtt_dummy_password
+CONFIG_YAML = CONFIG_YAML_BASE + '''
     parameters:
         - address: ET0PE
           device_class: energy
@@ -75,9 +50,10 @@ CONFIG_YAML = '''
 
 
 @pytest.mark.usefixtures('mock_config')
-@pytest.mark.serial_exchange(serial_exchange)
 @pytest.mark.config_yaml(CONFIG_YAML)
-def test_config_payload_update(mock_serial, mock_mqtt):
+def test_config_payload_update(
+    mock_serial: MockSerialT, mock_mqtt: MockMqttT
+) -> None:
     '''
     Tests for configuration payload to be sent again once it changes (e.g.
     through interpolation).

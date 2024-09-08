@@ -21,20 +21,26 @@
 """
 CLI interface to :class:`EnergomeraHassMqtt` class
 """
+from __future__ import annotations
+from typing import Optional, TYPE_CHECKING, Tuple
 import argparse
 import logging
 import asyncio
 from .config import EnergomeraConfig
+from .exceptions import EnergomeraConfigError
 from .hass_mqtt import EnergomeraHassMqtt
 from .const import DEFAULT_CONFIG_FILE
+if TYPE_CHECKING:
+    from argparse import Namespace
+
+_LOGGER = logging.getLogger(__name__)
 
 
-def process_cmdline():
+def process_cmdline() -> Tuple[str, Namespace]:
     """
     Processes command line parameters.
 
     :return: Processed parameters
-    :rtype: argparse.Namespace
     """
 
     parser = argparse.ArgumentParser()
@@ -43,23 +49,33 @@ def process_cmdline():
         default=DEFAULT_CONFIG_FILE,
         help="Path to configuration file (default: '%(default)s')"
     )
-    return parser.parse_args()
+    return (parser.prog, parser.parse_args())
 
 
-async def async_main(mqtt_port=None):
+async def async_main(mqtt_port: Optional[int] = None) -> None:
     """
     Primary async entry point.
 
-    :param int mqtt_port: Port of MQTT broker overriding one from config, only
+    :param mqtt_port: Port of MQTT broker overriding one from config, only
      used by tests since MQTT broker there has random port.
     """
-    args = process_cmdline()
+    prog, args = process_cmdline()
 
-    config = EnergomeraConfig(args.config_file)
+    try:
+        config = EnergomeraConfig(args.config_file)
+    except EnergomeraConfigError as exc:
+        logging.error(exc)
+        return
+
     # Override port of MQTT broker (if provided)
     if mqtt_port:
         config.of.mqtt.port = mqtt_port
     logging.basicConfig(level=config.logging_level)
+
+    # Print configuration details
+    print(f'Starting {prog}, configuration:')
+    print(config)
+
     client = EnergomeraHassMqtt(config)
     while True:
         config.interpolate()
@@ -77,7 +93,7 @@ async def async_main(mqtt_port=None):
     await client.finalize()
 
 
-def main():
+def main() -> None:
     """
     Main entry point for the CLI.
     """

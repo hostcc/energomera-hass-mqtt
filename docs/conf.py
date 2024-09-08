@@ -24,6 +24,7 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
     'sphinx.ext.autosectionlabel',
+    'sphinx_autodoc_typehints',
 ]
 
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']

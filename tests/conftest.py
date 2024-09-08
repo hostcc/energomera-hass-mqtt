@@ -2,18 +2,21 @@
 Shared data structures and fixtures.
 '''
 # pylint: disable=too-many-lines
-
+from __future__ import annotations
+from typing import Dict, Iterator, Union, List
 import json
 import sys
 from functools import reduce
-from unittest.mock import patch, call, DEFAULT
+from unittest.mock import patch, call, DEFAULT, AsyncMock, Mock
 import pytest
+from pytest import FixtureRequest
 import iec62056_21.transports
 from energomera_hass_mqtt.mqtt_client import MqttClient
-from unittest.mock import AsyncMock
 
+MockMqttT = Dict[str, Mock]
+MockSerialT = Dict[str, Mock]
 
-SERIAL_EXCHANGE_COMPLETE = [
+SERIAL_EXCHANGE_BASE = [
     {
         'receive_bytes': b'/?!\r\n',
         'send_bytes': b'/EKT5CE301v12\r\n',
@@ -30,6 +33,9 @@ SERIAL_EXCHANGE_COMPLETE = [
         'receive_bytes': b'\x01R1\x02HELLO()\x03M',
         'send_bytes': b'\x02HELLO(2,CE301,12,00123456,dummy)\r\n\x03\x01',
     },
+]
+
+SERIAL_EXCHANGE_COMPLETE = SERIAL_EXCHANGE_BASE + [
     {
         'receive_bytes': b'\x01R1\x02ET0PE()\x037',
         'send_bytes':
@@ -856,7 +862,7 @@ MQTT_PUBLISH_CALLS_COMPLETE = [
     ),
 ]
 
-CONFIG_YAML = '''
+CONFIG_YAML_BASE = '''
     general:
         oneshot: true
     meter:
@@ -871,6 +877,8 @@ CONFIG_YAML = '''
       password: mqtt_dummy_password
       # Leveraged by Docker-based tests since the broker is TLS-unaware
       tls: false
+'''
+CONFIG_YAML = CONFIG_YAML_BASE + '''
     parameters:
         - address: ET0PE
           device_class: energy
@@ -968,7 +976,7 @@ CONFIG_YAML = '''
 
 
 @pytest.fixture
-def mock_config(request):
+def mock_config(request: FixtureRequest) -> Iterator[None]:
     '''
     Provides mocked configuration file, to be used as context manager.
     '''
@@ -987,7 +995,9 @@ def mock_config(request):
 
 
 @pytest.fixture
-def mock_serial(request):
+def mock_serial(
+    request: FixtureRequest
+) -> Iterator[MockSerialT]:
     '''
     Provides necessary serial mocks, to be used as context manager.
     '''
@@ -1009,7 +1019,7 @@ def mock_serial(request):
         with patch.multiple(iec62056_21.transports.SerialTransport,
                             _send=DEFAULT, _recv=DEFAULT) as mocks:
             # Simulate data received from serial port.
-            mocked_serial_exchange = [
+            mocked_serial_exchange: List[Union[bytes, type[TimeoutError]]] = [
                 # Accessing `bytes` by subscription or via iterator (what
                 # `side_effect` internally does for iterable) will result in
                 # integer, so to retain the type the nested arrays each
@@ -1035,7 +1045,7 @@ def mock_serial(request):
 
 
 @pytest.fixture
-def mock_mqtt():
+def mock_mqtt() -> Iterator[MockMqttT]:
     '''
     Provides necessary MQTT mocks, to be used as context manager.
     '''

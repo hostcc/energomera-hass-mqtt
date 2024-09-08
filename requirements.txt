@@ -1,0 +1,5 @@
+iec62056-21 @ git+https://github.com/hostcc/iec62056-21.git@feature/transport-improvements
+aiomqtt==2.1.0
+pyyaml==6.0.1
+pydantic==2.9.0
+python-dateutil==2.9.0.post0

@@ -22,42 +22,39 @@
 Module to instantiate configuration data for :class:`EnergomeraHassMqtt` class
 from YAML files with defaults and schema validation.
 """
-
-import logging
+from __future__ import annotations
+from typing import Optional, cast
 from datetime import date
 from copy import deepcopy
 import re
+from re import Match
 from dateutil.relativedelta import relativedelta
 import yaml
-from schema import Schema, Optional, SchemaError, Or, And
-from addict import Dict
-from .const import DEFAULT_CONFIG
-
-
-class EnergomeraConfigError(Exception):
-    """
-    Exception thrown when configuration processing encounters an error.
-    """
+from pydantic import ValidationError
+from .schema import ConfigSchema, ConfigParameterSchema
+from .const import DEFAULT_CONFIG_PARAMETERS, LOGGING_LEVELS
+from .exceptions import EnergomeraConfigError
 
 
 class EnergomeraConfig:
     """
     Class representing configuration for :class:`EnergomeraHassMqtt` one.
 
-    :param str config_file: Name of configuration file
-    :param str content: Literal content representing the configuration
+    :param config_file: Name of configuration file
+    :param content: Literal content representing the configuration
     """
 
     @staticmethod
-    def _energomera_re_expr_param_int(match, default):
+    def _energomera_re_expr_param_int(
+        match: Match[str], default: int
+    ) -> int:
         """
         Static method to be used with ``re.sub()`` as callable processing the
         first match group as the argument to interpolation expression.
 
-        :param re.Match match: Match object provided by ``re.sub``
-        :param int default: Default value for the argument
-        :return str: Interpolated value for the expression argument
-        :rtype: str
+        :param match: Match object provided by ``re.sub``
+        :param default: Default value for the argument
+        :return: Interpolated value for the expression argument
         """
         # The method is designed to be called by `re.sub`, protect from being
         # called directly with no re.Match instance provided
@@ -97,12 +94,11 @@ class EnergomeraConfig:
             ) from exc
 
     @staticmethod
-    def _energomera_prev_month(match):
+    def _energomera_prev_month(match: Match[str]) -> str:
         """
         Static method to calculate previous month in meter's format.
 
         :return: Previous month formatted as ``<month number>.<year>``
-        :rtype: str
         """
 
         months = EnergomeraConfig._energomera_re_expr_param_int(match, 1)
@@ -112,13 +108,12 @@ class EnergomeraConfig:
         )
 
     @staticmethod
-    def _energomera_prev_day(match):
+    def _energomera_prev_day(match: Match[str]) -> str:
         """
         Static method to calculate previous day in meter's format.
 
         :return: Previous day formatted as ``<day number>.<month
           number>.<year>``
-        :rtype: str
         """
         days = EnergomeraConfig._energomera_re_expr_param_int(match, 1)
         return (
@@ -126,88 +121,27 @@ class EnergomeraConfig:
             .strftime('%d.%m.%y')
         )
 
-    _logging_levels = dict(
-        critical=logging.CRITICAL,
-        error=logging.ERROR,
-        warning=logging.WARNING,
-        info=logging.INFO,
-        debug=logging.DEBUG,
-    )
-
-    def _get_schema(self):
-        """
-        Returns schema for the configuration file.
-
-        :return: The schema to use when validating the configuration
-          file's contents
-        :rtype: Schema
-        """
-        return Schema({
-            Optional('general', default=DEFAULT_CONFIG.general): Schema({
-                # Re-use defaults from `general_defaults`
-                Optional('oneshot',
-                         default=DEFAULT_CONFIG.general.oneshot): bool,
-                Optional('intercycle_delay',
-                         default=DEFAULT_CONFIG.general.intercycle_delay): int,
-                Optional('logging_level',
-                         default=DEFAULT_CONFIG.general.logging_level): And(
-                    str,
-                    lambda x: x in self._logging_levels,
-                    error='Invalid logging level - should be one of'
-                          f' {", ".join(self._logging_levels.keys())}'
-                ),
-                Optional(
-                    'include_default_parameters',
-                    default=DEFAULT_CONFIG.general.include_default_parameters
-                ): bool,
-            }),
-            'meter': {
-                'port': str,
-                'password': str,
-                Optional('timeout', default=DEFAULT_CONFIG.meter.timeout): int,
-            },
-            'mqtt': {
-                'host': str,
-                Optional('port', default=DEFAULT_CONFIG.mqtt.port): int,
-                Optional('user', default=None): str,
-                Optional('password', default=None): str,
-                Optional('hass_discovery_prefix',
-                         default='homeassistant'): str,
-                Optional('tls', default=True): bool,
-            },
-            Optional('parameters', default=DEFAULT_CONFIG.parameters): [
-                Schema({
-                    'address': str,
-                    'name': Or(str, list),
-                    'device_class': str,
-                    'state_class': str,
-                    'unit': str,
-                    Optional('additional_data', default=None): str,
-                    Optional('entity_name', default=None): str,
-                    Optional('response_idx', default=None): int,
-                }),
-            ],
-        })
-
     @staticmethod
-    def _read_config(config_file):
+    def _read_config(config_file: str) -> str:
         """
         Reads configuration file.
 
-        :param str config_file: Name of configuration file
-        :return str: Configuration file contents
+        :param config_file: Name of configuration file
+        :return: Configuration file contents
         """
         with open(config_file, encoding='ascii') as file:
             content = file.read()
 
         return content
 
-    def __init__(self, config_file=None, content=None):
+    def __init__(
+        self, config_file: Optional[str] = None, content: Optional[str] = None
+    ) -> None:
         """
         Initializes configuration state either from file or content string.
 
-        :param str config_file: Name of configuration file
-        :param str content: Configuration contents
+        :param config_file: Name of configuration file
+        :param content: Configuration contents
         """
         if not config_file and not content:
             raise EnergomeraConfigError(
@@ -216,7 +150,9 @@ class EnergomeraConfig:
 
         try:
             if not content:
-                content = self._read_config(config_file)
+                # Cast the configure file name, since the check above ensures
+                # it is defined
+                content = self._read_config(cast(str, config_file))
 
             config = yaml.safe_load(content)
         except (yaml.YAMLError, OSError) as exc:
@@ -225,48 +161,51 @@ class EnergomeraConfig:
             ) from None
 
         try:
-            config = self._get_schema().validate(config)
-        except SchemaError as exc:
+            config = ConfigSchema.model_validate(config)
+        except ValidationError as exc:
+            errors = [
+                f"{'.'.join([str(y) for y in x['loc']])}: {x['msg']}"
+                for x in exc.errors()
+            ]
             raise EnergomeraConfigError(
-                f'Error validating configuration file:\n{str(exc)}'
+                'Error validating configuration file:\n' + '\n'.join(errors)
             ) from None
 
-        # Store the configuration state as `addict.Dict` so access by (possibly
-        # chained) attributes is available
-        self._config = Dict(config)
+        self._config: ConfigSchema = config
         # If enabled makes parameters a combination of default ones plus those
         # defined in the configuration file, no check for duplicates is
         # performed!
         if self._config.general.include_default_parameters:
             self._config.parameters = (
-                DEFAULT_CONFIG.parameters + self._config.parameters
+                [
+                    ConfigParameterSchema.model_validate(x)
+                    for x in DEFAULT_CONFIG_PARAMETERS
+                ] + self._config.parameters
             )
         # Make a copy of the original configuration for the `interpolate()`
         # method to access initially defined interpolation expressions if any
         self._orig_config = deepcopy(self._config)
 
     @property
-    def of(self):   # pylint:disable=C0103
+    def of(self) -> ConfigSchema:
         """
         Returns the configuration state
 
         :return: Configuration state
-        :rtype: :class:`Dict`
         """
         return self._config
 
     @property
-    def logging_level(self):
+    def logging_level(self) -> int:
         """
         Returns logging level suitable for :mod:`logging` library
 
         :return: Logging level
-        :rtype: int
         """
 
-        return self._logging_levels.get(self._config.general.logging_level)
+        return LOGGING_LEVELS[self._config.general.logging_level]
 
-    def interpolate(self):
+    def interpolate(self) -> None:
         """
         Interpolates certain expressions in ``parameters`` section of the
         configuration. The method uses original configuration as read from the
@@ -279,7 +218,7 @@ class EnergomeraConfig:
         """
         # Iterate over the original configuration
         for idx, param in enumerate(self._orig_config.parameters):
-            for key, value in param.items():
+            for key, value in param.model_dump().items():
                 # Interpolate expressions in string values
                 if isinstance(value, str):
                     value = re.sub(r'{{\s*energomera_prev_month\s*(.*?)\s*}}',
@@ -288,4 +227,21 @@ class EnergomeraConfig:
                                    self._energomera_prev_day, value)
                     # Store the (possibly) interpolated value to the
                     # configuration exposed to the consumers
-                    self._config.parameters[idx][key] = value
+                    setattr(self._config.parameters[idx], key, value)
+
+    def __repr__(self) -> str:
+        """
+        Returns string representation of the configuration.
+
+        :return: String representation
+        """
+        res = ''
+        for section in ('general', 'meter', 'mqtt'):
+            res += f' - {section}: ' + ', '.join([
+                f'{k}={v}' for k, v
+                in getattr(
+                    self._config, section
+                ).model_dump(exclude_none=True).items()
+            ]) + '\n'
+        res += f' - parameters: count={len(self._config.parameters)}\n'
+        return res

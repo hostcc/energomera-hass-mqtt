@@ -31,3 +31,8 @@ signature-mutators = [
 	# `patch.object` decorator of `unittest.mock`
 	"unittest.mock._patch_object"
 ]
+
+[[tool.mypy.overrides]]
+# No typing support in the module
+module = "iec62056_21.*"
+ignore_missing_imports = true

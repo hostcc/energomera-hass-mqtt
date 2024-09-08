@@ -23,12 +23,15 @@ Tests for 'energomera_hass_mqtt' package
 '''
 from unittest.mock import call
 import pytest
-from conftest import MQTT_PUBLISH_CALLS_COMPLETE, SERIAL_EXCHANGE_COMPLETE
+from conftest import (
+    MQTT_PUBLISH_CALLS_COMPLETE, SERIAL_EXCHANGE_COMPLETE, MockMqttT,
+    MockSerialT
+)
 from energomera_hass_mqtt.main import main
 
 
 @pytest.mark.usefixtures('mock_config')
-def test_normal_run(mock_serial, mock_mqtt):
+def test_normal_run(mock_serial: MockSerialT, mock_mqtt: MockMqttT) -> None:
     '''
     Tests for normal program execution validating serial and MQTT exchanges.
     '''
@@ -41,7 +44,7 @@ def test_normal_run(mock_serial, mock_mqtt):
 
 @pytest.mark.usefixtures('mock_serial', 'mock_config', 'mock_mqtt')
 @pytest.mark.serial_simulate_timeout(True)
-def test_timeout():
+def test_timeout() -> None:
     '''
     Tests for timeout handling, no unhandled exceptions should be raised.
     '''

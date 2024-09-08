@@ -21,12 +21,17 @@
 '''
 Tests for `EnergomeraConfig` class.
 '''
-
+from __future__ import annotations
+# re.Match is not generic in Python 3.8, so it uses the `typing.Match` despite
+# it is deprecated since Python 3.9
+from typing import cast, Match
 import logging
 import re
 from freezegun import freeze_time
 import pytest
-from energomera_hass_mqtt import EnergomeraConfig, EnergomeraConfigError
+from energomera_hass_mqtt import (
+    EnergomeraConfig, EnergomeraConfigError, ConfigSchema
+)
 
 VALID_CONFIG_YAML = '''
     meter:
@@ -48,7 +53,7 @@ VALID_CONFIG_YAML = '''
 
 @pytest.mark.usefixtures('mock_config')
 @pytest.mark.config_yaml(VALID_CONFIG_YAML)
-def test_valid_config_file():
+def test_valid_config_file() -> None:
     '''
     Tests for processing of valid configuration file.
     '''
@@ -79,16 +84,13 @@ def test_valid_config_file():
                 'device_class': 'dummy_class',
                 'state_class': 'dummy_state',
                 'unit': 'dummy',
-                'additional_data': None,
-                'entity_name': None,
-                'response_idx': None,
             },
         ],
     }
 
     config = EnergomeraConfig(config_file='dummy')
-    assert isinstance(config.of, dict)
-    assert config.of == valid_config
+    assert isinstance(config.of, ConfigSchema)
+    assert config.of == ConfigSchema.model_validate(valid_config)
     assert config.logging_level == logging.ERROR
 
 
@@ -113,13 +115,13 @@ VALID_CONFIG_DEFAULT_PARAMETERS_YAML = '''
 
 @pytest.mark.usefixtures('mock_config')
 @pytest.mark.config_yaml(VALID_CONFIG_DEFAULT_PARAMETERS_YAML)
-def test_valid_config_file_with_default_parameters():
+def test_valid_config_file_with_default_parameters() -> None:
     '''
     Tests for processing of valid configuration file that allows including
     default parameters plus adds some custom ones.
     '''
     config = EnergomeraConfig(config_file='dummy')
-    assert isinstance(config.of, dict)
+    assert isinstance(config.of, ConfigSchema)
     # Resulting number of parameters should be combined across default and
     # custom ones
     assert len(config.of.parameters) == 12
@@ -129,7 +131,7 @@ def test_valid_config_file_with_default_parameters():
 
 @pytest.mark.usefixtures('mock_config')
 @pytest.mark.config_yaml('')
-def test_empty_file():
+def test_empty_file() -> None:
     '''
     Tests for processing empty configuration file.
     '''
@@ -138,7 +140,7 @@ def test_empty_file():
 
 
 @pytest.mark.config_yaml(None)
-def test_non_existing_file():
+def test_non_existing_file() -> None:
     '''
     Tests for processing non-existent configuration file.
     '''
@@ -146,7 +148,7 @@ def test_non_existing_file():
         EnergomeraConfig(config_file='non-existent-config-file')
 
 
-def test_invalid_content():
+def test_invalid_content() -> None:
     '''
     Tests for invalid configuration content.
     '''
@@ -154,7 +156,7 @@ def test_invalid_content():
         EnergomeraConfig(content='not-a-yaml')
 
 
-def test_config_required_params():
+def test_config_required_params() -> None:
     '''
     Tests for required parameters.
     '''
@@ -165,7 +167,7 @@ def test_config_required_params():
     )
 
 
-def test_config_invalid_logging_level():
+def test_config_invalid_logging_level() -> None:
     '''
     Tests for invalid logging level properly reported.
     '''
@@ -178,8 +180,31 @@ def test_config_invalid_logging_level():
         mqtt:
             host: a-host
     '''
-    with pytest.raises(EnergomeraConfigError):
+    with pytest.raises(EnergomeraConfigError) as exc_info:
         EnergomeraConfig(content=invalid_config)
+    assert 'general.logging_level: Value error' in str(exc_info.value)
+
+
+def test_config_empty_parameters_with_no_default_ones() -> None:
+    '''
+    Tests for catching no parameters are supplied and no default ones are
+    enabled
+    '''
+    invalid_config = '''
+        general:
+          include_default_parameters: false
+        meter:
+            port: a-port
+            password: a-password
+        mqtt:
+            host: a-host
+        parameters: []
+    '''
+    with pytest.raises(EnergomeraConfigError) as exc_info:
+        EnergomeraConfig(content=invalid_config)
+    assert "Value error, 'parameters' should not be empty" in str(
+        exc_info.value
+    )
 
 
 INTERPOLATED_CONFIG_YAML = '''
@@ -246,8 +271,9 @@ INTERPOLATED_CONFIG_YAML = '''
     ]
 )
 def test_config_interpolation_date_change(
-    frozen_date, prev_month, prev_day, older_month, older_day
-):
+    frozen_date: str,
+    prev_month: str, prev_day: str, older_month: str, older_day: str
+) -> None:
     '''
     Verifies for interpolated expressions properly processed when `interpolate`
     method is called repeatedly on single configuration object.
@@ -344,7 +370,7 @@ INVALID_INTERPOLATION_CONFIGS_YAML = [
 
 @pytest.mark.usefixtures('mock_config')
 @pytest.mark.parametrize('config_yaml', INVALID_INTERPOLATION_CONFIGS_YAML)
-def test_config_interpolation_invalid(config_yaml):
+def test_config_interpolation_invalid(config_yaml: str) -> None:
     '''
     Verifies the expression interpolation raises exception processing the
     argument having invalid format.
@@ -354,25 +380,30 @@ def test_config_interpolation_invalid(config_yaml):
         config.interpolate()
 
 
-def test_config_interpolation_expr_param_re_no_groups():
+def test_config_interpolation_expr_param_re_no_groups() -> None:
     '''
     Verifies processing interpolation expression with associated regexp having
     no capturing groups results in default value.
     '''
-    # pylint:disable=protected-access
-    res = EnergomeraConfig._energomera_re_expr_param_int(
-        re.match('dummy pattern', 'dummy pattern'), 100
+    # Cast the `re.match` to drop `Optional` from the return type, so there is
+    # no typing error calling method under test
+    match = cast(
+        Match[str], re.match('dummy pattern', 'dummy pattern')
     )
+    # pylint:disable=protected-access
+    res = EnergomeraConfig._energomera_re_expr_param_int(match, 100)
     assert res == 100
 
 
-def test_config_interpolation_expr_param_re_no_match():
+def test_config_interpolation_expr_param_re_no_match() -> None:
     '''
     Verifies assertion fails when calling the method to process interpolation
     expression arguments directly with non-matching regex.
     '''
+    # See the comment above
+    match = cast(
+        Match[str], re.match('dummy pattern', 'dummy non-matching value')
+    )
     with pytest.raises(AssertionError):
         # pylint:disable=protected-access
-        EnergomeraConfig._energomera_re_expr_param_int(
-            re.match('dummy pattern', 'dummy non-matching value'), 100
-        )
+        EnergomeraConfig._energomera_re_expr_param_int(match, 100)

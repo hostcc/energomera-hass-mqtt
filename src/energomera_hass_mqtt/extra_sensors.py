@@ -21,7 +21,8 @@
 """
 Package to provide additional sensors on top of `IecToHassSensor`.
 """
-
+from __future__ import annotations
+from typing import Dict, Union, Any
 import logging
 from .iec_hass_sensor import IecToHassSensor
 
@@ -34,33 +35,14 @@ class IecToHassBinarySensor(IecToHassSensor):
     """
     _mqtt_topic_base = 'binary_sensor'
 
-    def hass_config_payload(self):
-        """
-        Provides payload for HASS MQTT discovery relevant to binary sensor.
-        """
-        # Code duplicates `IecToHassSensor` will be fixed separately
-        # pylint:disable=duplicate-code
-        return dict(
-            name=self._hass_item_name,
-            device=dict(
-                name=self._serial_number,
-                ids=self._hass_device_id,
-                model=self._model,
-                sw_version=self._sw_version,
-            ),
-            device_class=self._config_param.device_class,
-            unique_id=self._hass_unique_id,
-            object_id=self._hass_unique_id,
-            state_topic=self._hass_state_topic,
-            value_template='{{ value_json.value }}',
-        )
-
-    def hass_state_payload(self, value):  # pylint: disable=no-self-use
+    def hass_state_payload(
+        self, value: Union[str, str]
+    ) -> Dict[str, str]:  # pylint: disable=no-self-use
         """
         Transforms the binary sensor payload to the format understood by HASS
         MQTT discovery for the sensor type.
 
-        :param str,bool value: The sensor value
+        :param value: The sensor value
         """
         if isinstance(value, bool):
             b_value = value
@@ -80,11 +62,11 @@ class PseudoBinarySensor(IecToHassBinarySensor):
     """
     Represents a pseudo-sensor, i.e. one doesn't exist on meter.
 
-    :param str,bool value: The sensor value
+    :param value: The sensor value
     :param args: Parameters passed through to parent constructor
     :param kwargs: Keyword parameters passed through to parent constructor
     """
-    def __init__(self, value, *args, **kwargs):
+    def __init__(self, value: bool, *args: Any, **kwargs: Any):
         class PseudoValue:  # pylint: disable=too-few-public-methods
             """
             Mimics `class`:iec62056_21.messages.AnswerDataMessage to store the
@@ -94,9 +76,10 @@ class PseudoBinarySensor(IecToHassBinarySensor):
             """
             value = None
 
-            def __init__(self, value):
+            def __init__(self, value: bool) -> None:
                 self.value = value
 
         # Invoke the parent constructor providing `iec_item` from the
         # pseudo-sensor value
-        super().__init__(iec_item=[PseudoValue(value)], *args, **kwargs)
+        kwargs['iec_item'] = [PseudoValue(value)]
+        super().__init__(*args, **kwargs)

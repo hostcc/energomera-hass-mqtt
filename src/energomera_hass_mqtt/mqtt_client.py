@@ -21,6 +21,8 @@
 """
 The package provides additional functionality over `aiomqtt`.
 """
+from __future__ import annotations
+from typing import Any, Literal
 import logging
 import asyncio
 import aiomqtt
@@ -33,18 +35,19 @@ class DummyLock(asyncio.Lock):
     Class providing dummy functionality of `asyncio.Lock` - that is, no locking
     is actually done and it reports being always unlocked.
     '''
-    def locked(self):
+    def locked(self) -> bool:
         '''
         Provides status of the lock being always unlocked.
         '''
         return False
 
-    async def acquire(self):
+    async def acquire(self) -> Literal[True]:
         '''
         Does nothing.
         '''
+        return True
 
-    def release(self):
+    def release(self) -> None:
         '''
         Does nothing.
         '''
@@ -60,14 +63,14 @@ class MqttClient(aiomqtt.Client):
     :param args: Pass-through positional arguments for parent class
     :param kwargs: Pass-through keyword arguments for parent class
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         self._will_set = 'will' in kwargs
         super().__init__(logger=_LOGGER, *args, **kwargs)
         # Skip locking in `__aenter__` and `__aexit__` - those aren't used with
         # context manager, rather as regular methods, especially the former
         self._lock = DummyLock()
 
-    async def connect(self):
+    async def connect(self) -> None:
         """
         Connects to MQTT broker using `__aenter__` method of the base class as
         recommended in
@@ -96,7 +99,7 @@ class MqttClient(aiomqtt.Client):
         # pylint:disable=unnecessary-dunder-call
         await self.__aenter__()
 
-    async def disconnect(self):
+    async def disconnect(self) -> None:
         """
         Disconnects from MQTT broker using `__aexit__` method of the base class
         as per migration guide above.
@@ -104,7 +107,7 @@ class MqttClient(aiomqtt.Client):
         # pylint:disable=unnecessary-dunder-call
         await self.__aexit__(None, None, None)
 
-    def will_set(self, *args, **kwargs):
+    def will_set(self, *args: Any, **kwargs: Any) -> None:
         """
         Allows setting last will to the underlying MQTT client.
 
@@ -119,7 +122,7 @@ class MqttClient(aiomqtt.Client):
         self._client.will_set(*args, **kwargs)
         self._will_set = True
 
-    def will_clear(self):
+    def will_clear(self) -> None:
         """
         Clears the last will might have been set previously.
         """

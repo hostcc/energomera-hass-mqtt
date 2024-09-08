@@ -22,9 +22,16 @@
 Package provide single HASS sensor over MQTT from energy meter read using IEC
 protocol.
 """
-
+from __future__ import annotations
+from typing import (
+    Dict, TYPE_CHECKING, Optional, Union, Collection, List
+)
 import json
 import logging
+if TYPE_CHECKING:
+    from .schema import ConfigMqttSchema, ConfigParameterSchema
+    from .mqtt_client import MqttClient
+    from iec62056_21.messages import DataSet as IecDataSet
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,11 +42,11 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
     accordance with given configuration from the ``parameters`` section and
     sends them over to HomeAssistant using MQTT.
 
-    :param dict mqtt_config: ``mqtt`` fragment of the configuration
-    :param asyncio_mqtt.Client mqtt_client: Instance of MQTT client
-    :param dict config_param: particular entry from ``parameters``
+    :param mqtt_config: ``mqtt`` fragment of the configuration
+    :param mqtt_client: Instance of MQTT client
+    :param config_param: particular entry from ``parameters``
      configuration section
-    :param iec62056_21.messages.AnswerDataMessage iec_item: Entry received from
+    :param iec_item: Entry received from
      the meter for the specified ``config_param``
     """
 
@@ -47,67 +54,57 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
     # ensure it is done only once per multiple instantiations of the class -
     # HASS needs sensor discovery only once, otherwise logs a message re:
     # sensor has already been discovered
-    hass_config_payloads_published = {}
+    hass_config_payloads_published: Dict[str, int] = {}
     # Class attribute defining MQTT topic base for HASS discovery
     _mqtt_topic_base = 'sensor'
 
-    def __init__(self, mqtt_config, mqtt_client, config_param, iec_item):
+    def __init__(  # pylint: disable=too-many-arguments
+        self, mqtt_config: ConfigMqttSchema, mqtt_client: MqttClient,
+        config_param: ConfigParameterSchema, iec_item: List[IecDataSet],
+        model: str, sw_version: str, serial_number: str
+    ) -> None:
         self._config_param = config_param
         self._iec_item = iec_item
         self._mqtt_config = mqtt_config
         self._mqtt_client = mqtt_client
-        self._hass_item_name = None
-        self._hass_device_id = None
-        self._hass_unique_id = None
-        self._hass_config_topic = None
-        self._hass_state_topic = None
-        self._model = None
-        self._sw_version = None
-        self._serial_number = None
-        self._state_last_will_payload = None
+        self._hass_item_name: Optional[str] = None
+        self._hass_device_id: Optional[str] = None
+        self._hass_unique_id: Optional[str] = None
+        self._hass_config_topic: Optional[str] = None
+        self._hass_state_topic: Optional[str] = None
+        self._model = model
+        self._sw_version = sw_version
+        self._serial_number = serial_number
+        self._state_last_will_payload: Optional[bool] = None
 
-    def set_state_last_will_payload(self, value):
+    def set_state_last_will_payload(self, value: bool) -> None:
         """
         Stores there value of the last will payload for the item, i.e. sent by
         the MQTT broker if the client disconnects uncleanly.
 
-        :param any value: Value for last will payload
+        :param value: Value for last will payload
         """
         self._state_last_will_payload = value
 
-    def set_meter_ids(self, model, sw_version, serial_number):
-        """
-        Stores meter identification values (mode, SW version and serial
-        number).
-
-        :param str model: Meter's model
-        :param str sw_version: Software version of the meter
-        :param str serial_number: Meter's serial number
-        """
-        self._model = model
-        self._sw_version = sw_version
-        self._serial_number = serial_number
-
     @property
-    def iec_item(self):
+    def iec_item(self) -> List[IecDataSet]:
         """
         Provides IEC entity associated with the instance.
 
         :return: IEC entity
-        :rtype: iec62056_21.messages.AnswerDataMessage
         """
         return self._iec_item
 
     @iec_item.setter
-    def iec_item(self, value):
+    def iec_item(self, value: List[IecDataSet]) -> None:
         """
         Sets IEC entity associated with the instance.
 
-        :param iec62056_21.messages.AnswerDataMessage value: IEC entity
+        :param value: IEC entity
         """
         self._iec_item = value
 
-    def iec_try_value_by_index(self):
+    def iec_try_value_by_index(self) -> None:
         """
         Attempts to pick an item from multi-valued meter's response (if
         ``response_idx`` is configured in the entry of `parameters` section
@@ -126,15 +123,19 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
                               self._config_param.response_idx, self.iec_item)
                 self.iec_item = []
 
-    def hass_gen_hass_sensor_props(self, idx):
+    def hass_gen_hass_sensor_props(self, idx: int) -> None:
         """
         Generates various properties for the HASS sensor (device and unique
         IDs, MQTT topic names etc.).
         """
-        self._hass_item_name = self._config_param.name
         self._hass_device_id = f'{self._model}_{self._serial_number}'
         self._hass_unique_id = f'{self._hass_device_id}' \
             f'_{self._config_param.entity_name or self._config_param.address}'
+
+        if isinstance(self._config_param.name, list):
+            self._hass_item_name = self._config_param.name[0]
+        else:
+            self._hass_item_name = self._config_param.name
 
         # Multiple addresses with likely same name, the caller has to
         # provide meaningful names for those anyways even if they are
@@ -161,7 +162,9 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
             self._hass_device_id, self._hass_unique_id,
         ]
         if self._mqtt_config.hass_discovery_prefix:
-            topic_base_parts.insert(0, self._mqtt_config.hass_discovery_prefix)
+            topic_base_parts.insert(
+                0, self._mqtt_config.hass_discovery_prefix
+            )
         topic_base = '/'.join(topic_base_parts)
 
         # Config and state MQTT topics for HomeAssistant discovery, see
@@ -169,13 +172,23 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
         self._hass_config_topic = f'{topic_base}/config'
         self._hass_state_topic = f'{topic_base}/state'
 
-    def hass_config_payload(self):
+    def hass_config_payload(
+        self
+    ) -> Dict[str, Union[str, Collection[str], Dict[str, str]]]:
         """
         Returns HASS config payload for the item.
 
-        :return dict: HASS config payload
+        :return: HASS config payload
         """
-        return dict(
+        # Normally `set_hass_gen_hass_sensor_props` will ensure these are
+        # defined, but their types are `Optional` hence the check to ensure
+        # typing validations pass
+        assert (
+            self._hass_item_name and self._hass_device_id
+            and self._hass_unique_id and self._hass_state_topic
+        ), 'HASS item properties are missing'
+
+        res = dict(
             name=self._hass_item_name,
             device=dict(
                 name=self._serial_number,
@@ -191,23 +204,27 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
             state_topic=self._hass_state_topic,
             value_template='{{ value_json.value }}',
         )
+        # Skip empty values
+        return {k: v for k, v in res.items() if v is not None}
 
-    def hass_state_payload(self, value):  # pylint: disable=no-self-use
+    def hass_state_payload(  # pylint: disable=no-self-use
+        self, value: str
+    ) -> Dict[str, str]:
         """
         Returns HASS state payload for the item.
 
-        :return dict: HASS state payload
+        :return: HASS state payload
         """
         return dict(
             value=value
         )
 
-    async def process(self, setup_only=False):
+    async def process(self, setup_only: bool = False) -> None:
         """
         Processes the entry received from the meter and sends it to HASS over
         MQTT.
 
-        :param bool setup_only: Perform only setup steps for the entiry, such
+        :param setup_only: Perform only setup steps for the entiry, such
          as determining MQTT topics etc., with no payloads sent to MQTT. Used
          to configure MQTT last will, since it has to be done prior to
          connecting to MQTT broker, thus no payloads could be sent yet
@@ -230,7 +247,7 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
                 # Set last will for MQTT if specified for the item
                 if self._state_last_will_payload is not None:
                     will_payload = self.hass_state_payload(
-                        value=self._state_last_will_payload
+                        value=str(self._state_last_will_payload)
                     )
                     json_will_payload = json.dumps(will_payload)
 
@@ -250,6 +267,13 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
                 if setup_only:
                     continue
 
+                # Ensure HASS unique ID and config topic are defined, normally
+                # `set_hass_gen_hass_sensor_props` will set these, while their
+                # `Optional` type will result in typying validation error if
+                # not checked
+                assert self._hass_unique_id, 'HASS unique ID is missing'
+                assert self._hass_config_topic, 'HASS config topic is missing'
+                assert self._hass_state_topic, 'HASS state topic is missing'
                 # Send configuration payloads using MQTT once per sensor
                 config_payload = self.hass_config_payload()
                 json_config_payload = json.dumps(config_payload)
