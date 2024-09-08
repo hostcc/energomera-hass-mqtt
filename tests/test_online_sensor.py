@@ -21,14 +21,17 @@
 '''
 Tests for online sensor behavior
 '''
+from __future__ import annotations
+from typing import Any
 import json
 from unittest.mock import call, DEFAULT
 import pytest
+from conftest import MockMqttT
 from energomera_hass_mqtt.main import main
 
 
 @pytest.mark.usefixtures('mock_config', 'mock_serial')
-def test_online_sensor(mock_mqtt):
+def test_online_sensor(mock_mqtt: MockMqttT) -> None:
     '''
     Tests for handling online pseudo sensor.
     '''
@@ -42,7 +45,8 @@ def test_online_sensor(mock_mqtt):
     # 'OFF' value _before_ `MqttClient.connect()` as required by the
     # `paho-mqtt` client,
     # https://github.com/eclipse/paho.mqtt.python/blob/v1.6.0/src/paho/mqtt/client.py#L1647
-    async def trace_connect(*_, **__):
+    # `DEFAULT` is of type `Any` so the return value
+    async def trace_connect(*_: Any, **__: Any) -> Any:
         assert (
             mock_mqtt['will_set'].call_args_list[-1] == online_sensor_off_call
         )

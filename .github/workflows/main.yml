@@ -152,7 +152,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push images
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/arm/v7,linux/arm/v6,linux/arm64
@@ -160,3 +160,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
+          # Cache the buildx cache between builds using GitHub Actions cache
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

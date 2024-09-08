@@ -22,10 +22,16 @@
 Package to read data from Energomera energy meter and send over to
 HomeAssistant using MQTT.
 """
-from .const import (  # noqa: F401
-    DEFAULT_CONFIG_FILE, DEFAULT_CONFIG
+from .const import (
+    DEFAULT_CONFIG_FILE
 )
-from .config import (  # noqa: F401
-    EnergomeraConfig, EnergomeraConfigError
-)
-from .hass_mqtt import EnergomeraHassMqtt  # noqa: F401
+from .config import EnergomeraConfig
+from .exceptions import EnergomeraMeterError, EnergomeraConfigError
+from .schema import ConfigSchema
+from .hass_mqtt import EnergomeraHassMqtt
+
+__all__ = [
+    'DEFAULT_CONFIG_FILE', 'EnergomeraConfig',
+    'EnergomeraConfigError', 'EnergomeraMeterError',
+    'EnergomeraHassMqtt', 'ConfigSchema'
+]

@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Ilia Sotnikov
+# Copyright (c) 2024 Ilia Sotnikov
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -18,34 +18,18 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-'''
-Tests for 'energomera_hass_mqtt' package
-'''
-from unittest.mock import call
-import pytest
-from conftest import (
-    MQTT_PUBLISH_CALLS_COMPLETE, SERIAL_EXCHANGE_COMPLETE, MockMqttT,
-    MockSerialT
-)
-from energomera_hass_mqtt.main import main
+"""
+Exceptions for the package.
+"""
 
 
-@pytest.mark.usefixtures('mock_config')
-def test_normal_run(mock_serial: MockSerialT, mock_mqtt: MockMqttT) -> None:
-    '''
-    Tests for normal program execution validating serial and MQTT exchanges.
-    '''
-    main()
-    mock_mqtt['publish'].assert_has_calls(MQTT_PUBLISH_CALLS_COMPLETE)
-    mock_serial['_send'].assert_has_calls(
-        [call(x['receive_bytes']) for x in SERIAL_EXCHANGE_COMPLETE]
-    )
+class EnergomeraConfigError(Exception):
+    """
+    Exception thrown when configuration processing encounters an error.
+    """
 
 
-@pytest.mark.usefixtures('mock_serial', 'mock_config', 'mock_mqtt')
-@pytest.mark.serial_simulate_timeout(True)
-def test_timeout() -> None:
-    '''
-    Tests for timeout handling, no unhandled exceptions should be raised.
-    '''
-    main()
+class EnergomeraMeterError(Exception):
+    """
+    Exception thrown when the energy meter communication fails.
+    """

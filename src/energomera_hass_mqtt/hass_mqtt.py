@@ -22,19 +22,23 @@
 Package to read data from Energomera energy meter and send over to
 HomeAssistant using MQTT.
 """
-
+from __future__ import annotations
+from typing import Optional, TYPE_CHECKING, cast, List
 import logging
 import ssl
 from os import getenv
 
-from iec62056_21.messages import CommandMessage
+from iec62056_21.messages import CommandMessage, DataSet as IecDataSet
 from iec62056_21.client import Iec6205621Client
 from iec62056_21.transports import SerialTransport
 from iec62056_21 import utils
-from addict import Dict
 from .mqtt_client import MqttClient
 from .iec_hass_sensor import IecToHassSensor
 from .extra_sensors import PseudoBinarySensor
+from .schema import ConfigParameterSchema
+from .exceptions import EnergomeraMeterError
+if TYPE_CHECKING:
+    from .config import EnergomeraConfig
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,11 +50,11 @@ class EnergomeraHassMqtt:
     IEC 61107) and sends values of requested parameters to HomeAssisstant using
     MQTT.
 
-    :param EnergomeraConfig config: Configuration state
+    :param config: Configuration state
     """
 
     @staticmethod
-    def calculate_bcc(bytes_data: bytes):
+    def calculate_bcc(bytes_data: bytes) -> bytes:
         """
         Calculates protocol BCC using Energomera non-standard modification of
         IEC 1155-78.
@@ -58,9 +62,8 @@ class EnergomeraHassMqtt:
         See http://www.energomera.ru/documentations/product/ce301_303_rp.pdf,
         page 126, for more details.
 
-        :param bytes bytes_data: The data to calculate BCC over
+        :param bytes_data: The data to calculate BCC over
         :return: Calculated BCC
-        :rtype: str
         """
         bcc = 0
         for elem in bytes_data:
@@ -70,7 +73,7 @@ class EnergomeraHassMqtt:
         return bcc.to_bytes(length=1, byteorder='big')
 
     def __init__(
-        self, config,
+        self, config: EnergomeraConfig,
     ):
         self._config = config
         # Override the method in the `iec62056_21` library with the specific
@@ -82,7 +85,7 @@ class EnergomeraHassMqtt:
         # accept timeout, so instantiate the IEC client with explicit transport
         # - its constructor _does_ accept it
         self._client = Iec6205621Client(
-            password=config.of.meter.password,
+            password=config.of.meter.password.get_secret_value(),
             transport=SerialTransport(
                 port=config.of.meter.port,
                 timeout=config.of.meter.timeout
@@ -99,7 +102,13 @@ class EnergomeraHassMqtt:
             hostname=getenv('MQTT_HOST', config.of.mqtt.host),
             port=getenv('MQTT_PORT', config.of.mqtt.port),
             username=getenv('MQTT_USER', config.of.mqtt.user),
-            password=getenv('MQTT_PASSWORD', config.of.mqtt.password),
+            password=getenv(
+                'MQTT_PASSWORD',
+                (
+                    config.of.mqtt.password.get_secret_value()
+                    if config.of.mqtt.password else None
+                )
+            ),
             tls_context=mqtt_tls_context,
             # Set MQTT keepalive to interval between meter interaction cycles,
             # so that MQTT broker will consider the client disconnected upon
@@ -119,26 +128,51 @@ class EnergomeraHassMqtt:
         # `async_main()` instantiates the class only once
         IecToHassSensor.hass_config_payloads_published = {}
 
-    def iec_read_values(self, address, additional_data=None):
+    def iec_read_values(
+        self, address: str, additional_data: Optional[str] = None
+    ) -> List[IecDataSet]:
         """
         Reads value(s) at selected address from the meter using IEC 62056-21
         protocol.
 
-        :param str address: Address of meter parameter to read
-        :param str additional_data: Additional data to read the parameter with
+        :param address: Address of meter parameter to read
+        :param additional_data: Additional data to read the parameter with
          (argument to parameter's address)
         :return: Parameter's data received from the meter
-        :rtype: :class:`iec62056_21.messages.AnswerDataMessage`
         """
-
         request = CommandMessage.for_single_read(
             address, additional_data
         )
         self._client.transport.send(request.to_bytes())
 
-        return self._client.read_response().data
+        # `iec62056_21` library doesn't provide typiing hints for the response,
+        # so cast it explicitly
+        return cast(List[IecDataSet], self._client.read_response().data)
 
-    async def iec_read_admin(self):
+    def set_meter_ids(self, hello_response: List[IecDataSet]) -> None:
+        """
+        Stores meter's model, serial number and software version.
+
+        :param hello_response: Response to 'HELLO' command
+        """
+        if len(hello_response) != 1:
+            raise ValueError(
+                'Failed to retrieve meter identification data'
+            )
+        [_, self._model, self._sw_version, self._serial_number, _
+         ] = hello_response[0].value.split(',')
+
+        _LOGGER.debug(
+            "Retrieved identification data from meter:"
+            " model '%s', SW version '%s', serial number: '%s'",
+            self._model, self._sw_version, self._serial_number
+        )
+        if not all([self._model, self._sw_version, self._serial_number]):
+            raise EnergomeraMeterError(
+                'Failed to retrieve meter identification data'
+            )
+
+    async def iec_read_admin(self) -> None:
         """
         Primary method to loop over the parameters requested and process them.
         """
@@ -158,12 +192,7 @@ class EnergomeraHassMqtt:
             self._client.read_response()
 
             # Read meter identification (mode, SW version, serial number)
-            iec_hello_resp = self.iec_read_values('HELLO')[0]
-            [_, self._model, self._sw_version, self._serial_number, _
-             ] = iec_hello_resp.value.split(',')
-            _LOGGER.debug("Retrieved identification data from meter:"
-                          " model '%s', SW version '%s', serial number: '%s'",
-                          self._model, self._sw_version, self._serial_number)
+            self.set_meter_ids(self.iec_read_values('HELLO'))
 
             # This call will set last will only, which has to be done prior to
             # connecting to the broker
@@ -180,10 +209,12 @@ class EnergomeraHassMqtt:
                 hass_item = IecToHassSensor(
                     mqtt_config=self._config.of.mqtt,
                     mqtt_client=self._mqtt_client, config_param=param,
-                    iec_item=iec_item
-                )
-                hass_item.set_meter_ids(
-                    self._model, self._sw_version, self._serial_number
+                    iec_item=iec_item,
+                    # `set_meter_ids()` ensures these values are defined, so
+                    # cast them dropping `Optional` type
+                    model=cast(str, self._model),
+                    sw_version=cast(str, self._sw_version),
+                    serial_number=cast(str, self._serial_number)
                 )
                 await hass_item.process()
 
@@ -204,7 +235,7 @@ class EnergomeraHassMqtt:
             except Exception:  # pylint: disable=broad-except
                 pass
 
-    async def finalize(self):
+    async def finalize(self) -> None:
         """
         Performs finalization steps, that is - disconnecting MQTT client
         currently.
@@ -215,20 +246,24 @@ class EnergomeraHassMqtt:
         except Exception:  # pylint: disable=broad-except
             pass
 
-    async def set_online_sensor(self, state, setup_only=False):
+    async def set_online_sensor(
+        self, state: bool, setup_only: bool = False
+    ) -> None:
         """
         Adds a pseudo-sensor to HASS reflecting the communication state of
         meter - online or offline.
 
-        :param bool state: The sensor state
+        :param state: The sensor state
         """
-        # Meter identification should be present for the HASS sensor to have
-        # proper MQTT topics
-        if not all([self._model, self._sw_version, self._serial_number]):
-            return
+        # The variables normally are ensured by `set_meter_ids()`
+        # method, but the types of the variables are still `Optional` hence the
+        # check
+        assert (
+            self._model and self._sw_version and self._serial_number
+        ), 'Meter identification data is missing'
 
         # Add a pseudo-sensor
-        param = Dict(
+        param = ConfigParameterSchema(
             address='IS_ONLINE',
             name='Meter online status',
             device_class='connectivity',
@@ -239,9 +274,8 @@ class EnergomeraHassMqtt:
         hass_item = PseudoBinarySensor(
             mqtt_config=self._config.of.mqtt,
             mqtt_client=self._mqtt_client, config_param=param,
-            value=state)
-        hass_item.set_meter_ids(
-            self._model, self._sw_version, self._serial_number
+            value=state, model=self._model, sw_version=self._sw_version,
+            serial_number=self._serial_number
         )
         # Set the last will of the MQTT client to the `state=False`
         hass_item.set_state_last_will_payload(value=False)
