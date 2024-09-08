@@ -3,7 +3,7 @@ FROM python:3.13.0rc1-alpine AS build
 RUN apk add -U cargo git rust \
 	&& pip install build \
 	&& apk cache clean
-ADD . /usr/src/
+COPY . /usr/src/
 WORKDIR /usr/src/
 RUN python -m build
 RUN pip install --root target/ dist/*-`cat version.txt`*.whl
