@@ -38,7 +38,7 @@ from .exceptions import EnergomeraConfigError
 
 class EnergomeraConfig:
     """
-    Class representing configuration for :class:`EnergomeraHassMqtt` one.
+    Class representing configuration for :class:`EnergomeraHassMqtt`.
 
     :param config_file: Name of configuration file
     :param content: Literal content representing the configuration

@@ -23,10 +23,7 @@ Package to provide additional sensors on top of `IecToHassSensor`.
 """
 from __future__ import annotations
 from typing import Dict, Union, Any
-import logging
 from .iec_hass_sensor import IecToHassSensor
-
-_LOGGER = logging.getLogger(__name__)
 
 
 class IecToHassBinarySensor(IecToHassSensor):
