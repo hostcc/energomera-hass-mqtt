@@ -1,14 +1,17 @@
-FROM python:3.13.0rc1-alpine AS build
+FROM python:3.12.5-alpine AS build
+COPY . /usr/src/
+WORKDIR /usr/src/
 # Rust and Cargo are required to build `pyndatic-core` on ARM platforms
 RUN apk add -U cargo git rust \
 	&& pip install build \
 	&& apk cache clean
-COPY . /usr/src/
-WORKDIR /usr/src/
-RUN python -m build
-RUN pip install --root target/ dist/*-`cat version.txt`*.whl
+# Install dependencies in a separate layer to cache them
+RUN pip install -r requirements.txt
+# Build the package
+RUN python -m build \
+	&& pip install --root target/ dist/*-`cat version.txt`*.whl
 
-FROM python:3.13.0rc1-alpine
+FROM python:3.12.5-alpine
 COPY --from=build \
 	/usr/src/target/root/.local/lib/ /usr/local/lib/
 COPY --from=build \
