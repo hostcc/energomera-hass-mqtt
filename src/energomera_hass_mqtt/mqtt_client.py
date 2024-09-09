@@ -60,11 +60,15 @@ class MqttClient(aiomqtt.Client):
     last will thru its constructor, while the `EnergomeraHassMqtt` consuming it
     only has required property for that around actual publish calls.
 
+    :param dry_run: Whether to skip actual connection and publish calls
     :param args: Pass-through positional arguments for parent class
     :param kwargs: Pass-through keyword arguments for parent class
     """
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(
+        self, *args: Any, dry_run: bool = False, **kwargs: Any
+    ) -> None:
         self._will_set = 'will' in kwargs
+        self._dry_run = dry_run
         super().__init__(logger=_LOGGER, *args, **kwargs)
         # Skip locking in `__aenter__` and `__aexit__` - those aren't used with
         # context manager, rather as regular methods, especially the former
@@ -81,6 +85,9 @@ class MqttClient(aiomqtt.Client):
         a process loop with no risk of hitting non-reentrant error from base
         class.
         """
+        if self._dry_run:
+            _LOGGER.debug('Dry run, skipping connection')
+            return
         # Using combination of `self._connected` and `self._disconnected` (both
         # inherited from `asyncio_mqtt.client`) to detect of MQTT client needs
         # a reconnection upon a network error isn't reliable - the former isn't
@@ -104,8 +111,26 @@ class MqttClient(aiomqtt.Client):
         Disconnects from MQTT broker using `__aexit__` method of the base class
         as per migration guide above.
         """
+        if self._dry_run:
+            _LOGGER.debug('Dry run, skipping disconnection')
+            return
+
         # pylint:disable=unnecessary-dunder-call
         await self.__aexit__(None, None, None)
+
+    # pylint:disable=arguments-differ
+    async def publish(self, *args: Any, **kwargs: Any) -> None:
+        """
+        Publishes a message to the MQTT broker.
+
+        :param args: Pass-through positional arguments for parent method
+        :param kwargs: Pass-through keyword arguments for parent method
+        """
+        if self._dry_run:
+            _LOGGER.debug('Dry run, skipping publish')
+            return
+
+        await super().publish(*args, **kwargs)
 
     def will_set(self, *args: Any, **kwargs: Any) -> None:
         """
@@ -117,8 +142,13 @@ class MqttClient(aiomqtt.Client):
         :param args: Pass-through positional arguments for parent method
         :param kwargs: Pass-through keyword arguments for parent method
         """
+        if self._dry_run:
+            _LOGGER.debug('Dry run, skipping to set the last will')
+            return
+
         if self._will_set:
             return
+
         self._client.will_set(*args, **kwargs)
         self._will_set = True
 
@@ -126,5 +156,9 @@ class MqttClient(aiomqtt.Client):
         """
         Clears the last will might have been set previously.
         """
+        if self._dry_run:
+            _LOGGER.debug('Dry run, skipping to clear the last will')
+            return
+
         self._client.will_clear()
         self._will_set = False
