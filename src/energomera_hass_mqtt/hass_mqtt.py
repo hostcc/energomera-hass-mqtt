@@ -74,9 +74,10 @@ class EnergomeraHassMqtt:
         return bcc.to_bytes(length=1, byteorder='big')
 
     def __init__(
-        self, config: EnergomeraConfig,
+        self, config: EnergomeraConfig, dry_run: bool = False
     ):
         self._config = config
+        self._dry_run = dry_run
         # Override the method in the `iec62056_21` library with the specific
         # implementation
         # pylint: disable=protected-access
@@ -100,6 +101,7 @@ class EnergomeraHassMqtt:
             mqtt_tls_context = ssl.SSLContext()
 
         self._mqtt_client = MqttClient(
+            dry_run=self._dry_run,
             hostname=getenv('MQTT_HOST', config.of.mqtt.host),
             port=getenv('MQTT_PORT', config.of.mqtt.port),
             username=getenv('MQTT_USER', config.of.mqtt.user),

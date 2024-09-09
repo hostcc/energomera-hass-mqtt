@@ -28,6 +28,7 @@ import json
 import sys
 from functools import reduce
 from unittest.mock import patch, call, DEFAULT, AsyncMock, Mock
+import aiomqtt
 from callee import Regex as CallRegexMatcher
 import pytest
 from pytest import FixtureRequest
@@ -1103,4 +1104,20 @@ def mock_mqtt() -> Iterator[MockMqttT]:
     with patch.multiple(MqttClient,
                         publish=DEFAULT, connect=DEFAULT, will_set=DEFAULT,
                         new_callable=AsyncMock) as mocks:
+        yield mocks
+
+
+@pytest.fixture
+def mock_mqtt_underlying() -> Iterator[MockMqttT]:
+    '''
+    Provides necessary mocks to underlying MQTT client, to be used as context
+    manager.
+    '''
+    with patch.multiple(
+        aiomqtt.Client,
+        publish=DEFAULT,
+        __aenter__=DEFAULT,
+        __aexit__=DEFAULT,
+        new_callable=AsyncMock
+    ) as mocks:
         yield mocks

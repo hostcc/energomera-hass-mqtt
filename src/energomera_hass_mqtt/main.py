@@ -49,6 +49,24 @@ def process_cmdline() -> Tuple[str, Namespace]:
         default=DEFAULT_CONFIG_FILE,
         help="Path to configuration file (default: '%(default)s')"
     )
+    parser.add_argument(
+        '-a', '--dry-run',
+        action='store_true',
+        default=False,
+        help="Dry run, do not actually send any data"
+    )
+    parser.add_argument(
+        '-d', '--debug',
+        action='store_true',
+        default=False,
+        help="Enable debug logging"
+    )
+    parser.add_argument(
+        '-o', '--one-shot',
+        action='store_true',
+        default=False,
+        help="Run only once, then exit"
+    )
     return (parser.prog, parser.parse_args())
 
 
@@ -70,13 +88,23 @@ async def async_main(mqtt_port: Optional[int] = None) -> None:
     # Override port of MQTT broker (if provided)
     if mqtt_port:
         config.of.mqtt.port = mqtt_port
-    logging.basicConfig(level=config.logging_level)
+
+    # Support overriding certain configuration options from command line
+    if args.one_shot:
+        config.of.general.oneshot = True
+
+    if args.debug:
+        config.of.general.logging_level = 'debug'
 
     # Print configuration details
     print(f'Starting {prog}, configuration:')
     print(config)
 
-    client = EnergomeraHassMqtt(config)
+    if args.dry_run:
+        print('Dry run mode enabled, no data will be sent over MQTT')
+
+    logging.basicConfig(level=config.logging_level)
+    client = EnergomeraHassMqtt(config=config, dry_run=args.dry_run)
     while True:
         config.interpolate()
         try:

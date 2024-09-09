@@ -21,7 +21,8 @@
 '''
 Tests for 'energomera_hass_mqtt' package
 '''
-from unittest.mock import call
+from unittest.mock import call, patch
+import logging
 import pytest
 from conftest import (
     MQTT_PUBLISH_CALLS_COMPLETE, SERIAL_EXCHANGE_COMPLETE, MockMqttT,
@@ -40,6 +41,39 @@ def test_normal_run(mock_serial: MockSerialT, mock_mqtt: MockMqttT) -> None:
     mock_serial['_send'].assert_has_calls(
         [call(x['receive_bytes']) for x in SERIAL_EXCHANGE_COMPLETE]
     )
+
+
+@pytest.mark.usefixtures('mock_config')
+def test_dry_run(
+    mock_serial: MockSerialT, mock_mqtt_underlying: MockMqttT,
+    monkeypatch: pytest.MonkeyPatch
+) -> None:
+    '''
+    Tests for enabling dry-run mode from command line.
+    '''
+    monkeypatch.setattr('sys.argv', ['energomera_hass_mqtt', '-a'])
+    main()
+    # Ensure that no MQTT calls are made are sent
+    mock_mqtt_underlying['publish'].assert_not_called()
+    mock_mqtt_underlying['__aenter__'].assert_not_called()
+    mock_mqtt_underlying['__aexit__'].assert_not_called()
+    # While serial exchanges are still made
+    mock_serial['_send'].assert_has_calls(
+        [call(x['receive_bytes']) for x in SERIAL_EXCHANGE_COMPLETE]
+    )
+
+
+@pytest.mark.usefixtures('mock_config', 'mock_mqtt', 'mock_serial')
+def test_debug_run(
+    monkeypatch: pytest.MonkeyPatch
+) -> None:
+    '''
+    Tests for enabling debug logging from command line.
+    '''
+    monkeypatch.setattr('sys.argv', ['energomera_hass_mqtt', '-d'])
+    with patch('logging.basicConfig') as mock:
+        main()
+    mock.assert_called_with(level=logging.DEBUG)
 
 
 @pytest.mark.usefixtures('mock_serial', 'mock_config', 'mock_mqtt')
