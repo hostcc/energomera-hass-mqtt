@@ -891,9 +891,10 @@ MQTT_PUBLISH_CALLS_COMPLETE = [
                 },
                 'unique_id': 'CE301_00123456_CYCLE_DURATION',
                 'object_id': 'CE301_00123456_CYCLE_DURATION',
-                'unit_of_measurement': 'ms',
+                'unit_of_measurement': 's',
                 'state_topic': 'homeassistant/sensor/CE301_00123456/'
                                'CE301_00123456_CYCLE_DURATION/state',
+                'entity_category': 'diagnostic',
                 'value_template': '{{ value_json.value }}'
             }
         ),

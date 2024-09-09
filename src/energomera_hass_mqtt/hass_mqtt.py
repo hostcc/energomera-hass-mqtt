@@ -294,7 +294,7 @@ class EnergomeraHassMqtt:
         param = ConfigParameterSchema(
             address='CYCLE_DURATION',
             name='Meter cycle duration',
-            unit='ms',
+            unit='s',
             entity_category='diagnostic',
         )
         hass_item = PseudoSensor[float](

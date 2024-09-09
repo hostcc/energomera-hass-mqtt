@@ -201,6 +201,7 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
             unit_of_measurement=self._config_param.unit,
             state_class=self._config_param.state_class,
             state_topic=self._hass_state_topic,
+            entity_category=self._config_param.entity_category,
             value_template='{{ value_json.value }}',
         )
         # Skip empty values
