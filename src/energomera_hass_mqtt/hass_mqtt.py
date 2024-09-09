@@ -229,7 +229,6 @@ class EnergomeraHassMqtt:
         else:
             await self.set_online_sensor(True)
             duration = time() - start
-            _LOGGER.debug('Cycle duration: %s ms', duration)
             await self.set_duration_sensor(duration)
         finally:
             # Disconnect serial client ignoring possible
@@ -290,6 +289,7 @@ class EnergomeraHassMqtt:
         Adds a pseudo-sensor to HASS reflecting the duration of the meter
         cycle.
         """
+        _LOGGER.debug('Cycle duration: %s s', value)
         # Add a pseudo-sensor
         param = ConfigParameterSchema(
             address='CYCLE_DURATION',
