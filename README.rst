@@ -124,6 +124,8 @@ Configuration file is in YAML format and supports following elements:
               # (number) - optional: Zero-based index to pick an entry from
               #  multi-value response to meter's parameter
               response_idx:
+              # (string) - optional: Category of the HASS sensor entity
+              entity_category:
 
 
 Interpolation expressions
@@ -167,7 +169,7 @@ directory.
 Docker support
 ==============
 
-There are Docker images available if you would like to run it as Docker container - you could use 
+There are Docker images available if you would like to run it as Docker container - you could use
 ``ghcr.io/hostcc/energomera-hass-mqtt:latest`` or
 ``ghcr.io/hostcc/energomera-hass-mqtt:<release version>``.
 
@@ -187,7 +189,7 @@ Then, assuming the directory is called ``config`` and resides relative to
 current directory, and the serial port the meter is connected to is
 ``/dev/ttyUSB0`` the following command will run it
 
-.. code:: 
+.. code::
 
   $ docker run --device /dev/ttyUSB0 -v `pwd`/config:/etc/energomera/ \
     ghcr.io/hostcc/energomera-hass-mqtt:latest

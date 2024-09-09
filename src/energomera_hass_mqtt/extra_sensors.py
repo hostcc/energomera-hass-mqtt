@@ -22,61 +22,58 @@
 Package to provide additional sensors on top of `IecToHassSensor`.
 """
 from __future__ import annotations
-from typing import Dict, Union, Any
+from typing import Any, Generic, TypeVar, Optional
+from iec62056_21.messages import DataSet as IecDataSet
 from .iec_hass_sensor import IecToHassSensor
 
-
-class IecToHassBinarySensor(IecToHassSensor):
-    """
-    Represents HASS binary sensor.
-    """
-    _mqtt_topic_base = 'binary_sensor'
-
-    def hass_state_payload(
-        self, value: Union[str, str]
-    ) -> Dict[str, str]:  # pylint: disable=no-self-use
-        """
-        Transforms the binary sensor payload to the format understood by HASS
-        MQTT discovery for the sensor type.
-
-        :param value: The sensor value
-        """
-        if isinstance(value, bool):
-            b_value = value
-        elif isinstance(value, str):
-            b_value = value.lower() == 'true'
-        else:
-            raise TypeError(
-                f'Unsupported argument type to {__name__}: {type(value)}'
-            )
-
-        return dict(
-            value='ON' if b_value else 'OFF'
-        )
+T = TypeVar('T')
 
 
-class PseudoBinarySensor(IecToHassBinarySensor):
+class PseudoSensor(IecToHassSensor, Generic[T]):
     """
     Represents a pseudo-sensor, i.e. one doesn't exist on meter.
-
-    :param value: The sensor value
-    :param args: Parameters passed through to parent constructor
-    :param kwargs: Keyword parameters passed through to parent constructor
     """
-    def __init__(self, value: bool, *args: Any, **kwargs: Any):
-        class PseudoValue:  # pylint: disable=too-few-public-methods
-            """
-            Mimics `class`:iec62056_21.messages.AnswerDataMessage to store the
-            sensor value in a conmpatible manner.
-
-            :param value: Sensor value
-            """
-            value = None
-
-            def __init__(self, value: bool) -> None:
-                self.value = value
-
+    def __init__(self, value: T, *args: Any, **kwargs: Any):
+        self._state_last_will_payload: Optional[T] = None
         # Invoke the parent constructor providing `iec_item` from the
         # pseudo-sensor value
-        kwargs['iec_item'] = [PseudoValue(value)]
+        kwargs['iec_item'] = [
+            IecDataSet(value=PseudoSensor._format_value(value))
+        ]
         super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def _format_value(value: T) -> Optional[str]:
+        """
+        Formats the sensor's value according to its type.
+
+        :param value: The sensor value
+        :return: The formatted value
+        """
+        result = None
+        if isinstance(value, bool):
+            result = 'ON' if value else 'OFF'
+        else:
+            result = str(value)
+        return result
+
+    @property
+    def state_last_will_payload(self) -> Optional[str]:
+        """
+        Stores the value of the last will payload for the item, i.e. sent by
+        the MQTT broker if the client disconnects uncleanly.
+
+        :param value: Value for last will payload
+        """
+        return PseudoSensor._format_value(self._state_last_will_payload)
+
+    @state_last_will_payload.setter
+    def state_last_will_payload(self, value: T) -> None:
+        self._state_last_will_payload = value
+
+
+class PseudoBinarySensor(PseudoSensor[bool]):
+    """
+    Represents a binary pseudo-sensor.
+    """
+    _mqtt_topic_base = 'binary_sensor'
