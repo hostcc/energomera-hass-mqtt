@@ -160,6 +160,8 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
-          # Cache the buildx cache between builds using GitHub Actions cache
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Cache the buildx cache between builds using GitHub registry
+          cache-from: |
+            type=registry,ref=ghcr.io/${{ github.repository }}/buildcache
+          cache-to: |
+            type=registry,ref=ghcr.io/${{ github.repository }}/buildcache,mode=max
