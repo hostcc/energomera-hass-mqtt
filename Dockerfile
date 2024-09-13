@@ -6,9 +6,9 @@ RUN apk add -U cargo git rust \
 	&& pip install build \
 	&& apk cache clean
 # Install dependencies in a separate layer to cache them
-RUN --mount=type=cache,target=/root/.cache/pip pip install --root target/ -r requirements.txt
+RUN pip install --root target/ -r requirements.txt
 # Build the package
-RUN --mount=type=cache,target=/root/.cache/pip python -m build \
+RUN python -m build \
 	&& pip install --root target/ dist/*-`cat version.txt`*.whl
 
 FROM python:3.12.5-alpine
