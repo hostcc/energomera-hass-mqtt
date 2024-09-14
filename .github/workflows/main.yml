@@ -161,7 +161,7 @@ jobs:
       - name: Build and push images
         uses: docker/build-push-action@v6
         env:
-          SETUPTOOLS_SCM_PRETEND_VERSION_ENERGOMERA_HASS_MQTT: ${{ needs.tests.outputs.version }}
+          SETUPTOOLS_SCM_PRETEND_VERSION_FOR_ENERGOMERA_HASS_MQTT: ${{ needs.tests.outputs.version }}
         with:
           platforms: ${{ matrix.platform }}
           push: true
