@@ -166,7 +166,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
-          build-arg: |
+          build-args: |
             VERSION=${{ needs.tests.outputs.version }}
           # Cache the buildx cache between builds using GitHub registry
           cache-from: |
