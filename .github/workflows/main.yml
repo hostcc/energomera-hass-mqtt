@@ -170,6 +170,6 @@ jobs:
             VERSION=${{ needs.tests.outputs.version }}
           # Cache the buildx cache between builds using GitHub registry
           cache-from: |
-            type=registry,ref=ghcr.io/${{ github.repository }}/buildcache-${{ matrix.platform }}
+            type=registry,ref=ghcr.io/${{ github.repository }}/buildcache:${{ matrix.platform }}
           cache-to: |
-            type=registry,ref=ghcr.io/${{ github.repository }}/buildcache-${{ matrix.platform }},mode=max
+            type=registry,ref=ghcr.io/${{ github.repository }}/buildcache:${{ matrix.platform }},mode=max
