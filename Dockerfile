@@ -16,7 +16,7 @@ FROM python:3.12.5-alpine
 COPY --from=build \
 	/usr/src/target/root/.local/lib/ /usr/local/lib/
 COPY --from=build \
-	/usr/src/target/root/.local/bin/ \
+	/usr/src/target/usr/local/bin/ \
 	/usr/local/bin/
 
 ENTRYPOINT ["energomera-hass-mqtt"]
