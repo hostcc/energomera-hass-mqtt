@@ -118,8 +118,11 @@ jobs:
       matrix:
         include:
           - platform: linux/arm/v7
+            cache_tag: linux-arm-v7
           - platform: linux/arm/v6
+            cache_tag: linux-arm-v6
           - platform: linux/arm64
+            cache_tag: linux-arm64
     runs-on: ubuntu-latest
     needs: [tests]
     permissions:
@@ -170,6 +173,6 @@ jobs:
             VERSION=${{ needs.tests.outputs.version }}
           # Cache the buildx cache between builds using GitHub registry
           cache-from: |
-            type=registry,ref=ghcr.io/${{ github.repository }}/buildcache:${{ matrix.platform }}
+            type=registry,ref=ghcr.io/${{ github.repository }}/buildcache:${{ matrix.cache_tag }}
           cache-to: |
-            type=registry,ref=ghcr.io/${{ github.repository }}/buildcache:${{ matrix.platform }},mode=max
+            type=registry,ref=ghcr.io/${{ github.repository }}/buildcache:${{ matrix.cache_tag }},mode=max
