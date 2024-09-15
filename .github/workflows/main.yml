@@ -160,14 +160,14 @@ jobs:
 
       - name: Build and push images
         uses: docker/build-push-action@v6
-        env:
-          SETUPTOOLS_SCM_PRETEND_VERSION_FOR_ENERGOMERA_HASS_MQTT: ${{ needs.tests.outputs.version }}
         with:
           platforms: ${{ matrix.platform }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
+          build-arg: |
+            VERSION=${{ needs.tests.outputs.version }}
           # Cache the buildx cache between builds using GitHub registry
           cache-from: |
             type=registry,ref=ghcr.io/${{ github.repository }}/buildcache-${{ matrix.platform }}
