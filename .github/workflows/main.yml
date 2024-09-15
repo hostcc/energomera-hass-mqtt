@@ -142,9 +142,9 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}-${{ matrix.platform }}
+          images: ghcr.io/${{ github.repository }}
           tags: |
-            type=pep440,pattern={{raw}},value=${{ needs.tests.outputs.version }}
+            type=pep440,pattern={{raw}},value=${{ needs.tests.outputs.version }}-${{ matrix.platform }}
             type=raw,value=latest,enable=${{
               github.event_name == 'release'
               && github.event.action == 'published'
