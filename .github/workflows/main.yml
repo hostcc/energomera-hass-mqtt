@@ -154,14 +154,23 @@ jobs:
       - name: Build and push images
         uses: docker/build-push-action@v6
         with:
+          # No explicit context used, since that makes cache misses most of the
+          # time, likely because of `version.txt` being unique on each build.
+          # See https://github.com/docker/build-push-action/issues/286 for more
+          # details
           platforms: linux/arm/v7,linux/arm/v6,linux/arm64,linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
+          # Implicit context points to working copy, not Git respository, so
+          # `setuptools_scm` needs to receive the version explicitly
           build-args: |
             VERSION=${{ needs.tests.outputs.version }}
-          # Cache the buildx cache between builds using GitHub registry
+          # Cache the buildx cache between builds using GitHub registry. `gha`
+          # cache has been mentioned to introduce cache misses for
+          # multi-platform builds, see https://github.com/docker/buildx/discussions/1382
+          # for potential hints
           cache-from: |
             type=registry,ref=ghcr.io/${{ github.repository }}/buildcache:latest
           cache-to: |
