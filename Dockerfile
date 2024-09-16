@@ -14,7 +14,9 @@ RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_ENERGOMERA_HASS_MQTT=${VERSION} python -m
 
 FROM python:3.12.5-alpine
 COPY --from=build \
-	/usr/src/target/root/.local/lib/ /usr/local/lib/
+	/usr/src/target/root/.local/lib/ \
+	/usr/src/target/usr/local/lib/ \
+	/usr/local/lib/
 COPY --from=build \
 	/usr/src/target/usr/local/bin/ \
 	/usr/local/bin/
