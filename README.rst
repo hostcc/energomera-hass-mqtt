@@ -43,12 +43,15 @@ Usage
 
 .. code::
 
-   usage: energomera-hass-mqtt [-h] [-c CONFIG_FILE]
+   usage: energomera-hass-mqtt [-h] [-c CONFIG_FILE] [-a] [-d] [-o]
 
-   optional arguments:
-    -h, --help            show this help message and exit
-    -c CONFIG_FILE, --config-file CONFIG_FILE
-       Path to configuration file (default: '/etc/energomera/config.yaml')
+   options:
+   -h, --help            show this help message and exit
+   -c CONFIG_FILE, --config-file CONFIG_FILE
+                           Path to configuration file (default: '/etc/energomera/config.yaml')
+   -a, --dry-run         Dry run, do not actually send any data
+   -d, --debug           Enable debug logging
+   -o, --one-shot        Run only once, then exit
 
 Configuration file format
 =========================
