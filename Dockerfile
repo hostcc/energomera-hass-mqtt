@@ -4,8 +4,12 @@ FROM python:3.12.5-alpine AS deps
 RUN apk add -U cargo git rust \
 	&& pip install build \
 	&& apk cache clean
+
+# Limit use of the build context to the requirements file only, to avoid cache
+# invalidation when other files get changed
+COPY requirements.txt .
 # Install dependencies in a separate layer to cache them
-RUN --mount=type=bind,target=source/ pip install --root /tmp/target/ -r source/requirements.txt
+RUN pip install --root /tmp/target/ -r requirements.txt
 
 FROM python:3.12.5-alpine AS build
 
