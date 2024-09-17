@@ -1,6 +1,4 @@
-FROM python:3.12.5-alpine AS build
-
-WORKDIR /usr/src/
+FROM python:3.12.5-alpine AS deps
 
 # Rust and Cargo are required to build `pyndatic-core` on ARM platforms
 RUN apk add -U cargo git rust \
@@ -8,6 +6,16 @@ RUN apk add -U cargo git rust \
 	&& apk cache clean
 # Install dependencies in a separate layer to cache them
 RUN --mount=type=bind,target=source/ pip install --root /tmp/target/ -r source/requirements.txt
+
+FROM python:3.12.5-alpine AS build
+
+RUN apk add -U git \
+	&& pip install build \
+	&& apk cache clean
+
+COPY --from=deps \
+	/tmp/target/usr/local/lib/ \
+	/usr/local/lib/
 
 # Build the package
 ARG VERSION
@@ -20,6 +28,9 @@ RUN --mount=type=bind,target=source/,rw SETUPTOOLS_SCM_PRETEND_VERSION_FOR_ENERG
 	&& pip install --root /tmp/target/ /tmp/dist/*-${VERSION}*.whl
 
 FROM python:3.12.5-alpine
+COPY --from=deps \
+	/tmp/target/usr/local/lib/ \
+	/usr/local/lib/
 COPY --from=build \
 	/tmp/target/usr/local/lib/ \
 	/usr/local/lib/
