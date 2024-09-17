@@ -14,6 +14,8 @@ ARG VERSION
 RUN test -z "${VERSION}" && echo "No 'VERSION' argument provided, exiting" \
 	&& exit 1 || true
 
+# Writeable mount is needed for src/*.egg-info the `setup` module wants to
+# create
 RUN --mount=type=bind,target=source/,rw SETUPTOOLS_SCM_PRETEND_VERSION_FOR_ENERGOMERA_HASS_MQTT=${VERSION} python -m build --outdir /tmp/dist/ source/ \
 	&& pip install --root /tmp/target/ /tmp/dist/*-${VERSION}*.whl
 
