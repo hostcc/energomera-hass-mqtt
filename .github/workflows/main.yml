@@ -84,6 +84,8 @@ jobs:
             cache_tag: linux-arm-v6
           - platform: linux/arm64
             cache_tag: linux-arm64
+          - platform: linux/amd64
+            cache_tag: linux-amd64
     runs-on: ubuntu-latest
     needs: [tests]
     permissions:
