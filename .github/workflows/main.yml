@@ -173,5 +173,5 @@ jobs:
         run: >-
           docker run --rm
           --platform ${{ matrix.platform }}
-          ghcr.io/${{ github.repository }}:${{ needs.test.outputs.verions }}
+          ghcr.io/${{ github.repository }}:${{ needs.test.outputs.version }}
           --help
