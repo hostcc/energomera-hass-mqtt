@@ -88,7 +88,7 @@ jobs:
             cache_tag: linux-amd64
     runs-on: ubuntu-latest
     outputs:
-      image_version_${{ matrix.platform }}: ${{ steps.meta.outputs.version }}
+      ${{ format('image_version_{0}', matrix.platform) }}: ${{ steps.meta.outputs.version }}
     needs: [tests]
     permissions:
       contents: read
