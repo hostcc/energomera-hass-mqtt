@@ -128,6 +128,7 @@ jobs:
 
     - name: Build and push images
       uses: docker/build-push-action@v6
+      id: build
       with:
         # No explicit context used, since that makes cache misses most of the
         # time.
@@ -158,7 +159,9 @@ jobs:
         matrix-step-name: ${{ github.job }}
         matrix-key: ${{ matrix.platform_name }}
         outputs: |-
-          image: ghcr.io/${{ github.repository }}:${{ steps.meta.outputs.version }}
+          image_version: ${{ steps.meta.outputs.version }}
+          image_digest: ${{ steps.build.outputs.digest }}
+          image_id: ${{ steps.build.outputs.imageid }}
 
   docker-test:
     name: Test Docker images
@@ -192,5 +195,5 @@ jobs:
         run: >-
           docker run --rm
           --platform ${{ matrix.platform_id }}
-          ghcr.io/${{ github.repository }}:${{ fromJson(steps.read.outputs.result).image[matrix.platform_name] }}
+          ghcr.io/${{ github.repository }}:${{ fromJson(steps.read.outputs.result).image_version[matrix.platform_name] }}
           --help
