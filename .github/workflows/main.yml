@@ -152,7 +152,7 @@ jobs:
           type=registry,ref=ghcr.io/${{ github.repository }}/buildcache:${{ matrix.cache_tag }},mode=max
 
     - name: Store image information
-      uses: cloudposse/github-action-matrix-outputs-write@v1
+      uses: GoCodeAlone/github-action-matrix-outputs-write@v1
       id: out
       with:
         matrix-step-name: ${{ github.job }}
@@ -174,7 +174,7 @@ jobs:
           - platform: linux/arm/v6
     steps:
       - name: Read image information from publish job
-        uses: cloudposse/github-action-matrix-outputs-read@v1
+        uses: GoCodeAlone/github-action-matrix-outputs-read@v1
         id: read
         with:
           matrix-step-name: docker-publish
