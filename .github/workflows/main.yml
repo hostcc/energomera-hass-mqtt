@@ -78,14 +78,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: linux/arm/v7
-            cache_tag: linux-arm-v7
-          - platform: linux/arm/v6
-            cache_tag: linux-arm-v6
-          - platform: linux/arm64
-            cache_tag: linux-arm64
-          - platform: linux/amd64
-            cache_tag: linux-amd64
+          - platform_id: linux/arm/v7
+            platform_name: linux-arm-v7
+          - platform_id: linux/arm/v6
+            platform_name: linux-arm-v6
+          - platform_id: linux/arm64
+            platform_name: linux-arm64
+          - platform_id: linux/amd64
+            platform_name: linux-amd64
     runs-on: ubuntu-latest
     needs: [tests]
     permissions:
@@ -107,7 +107,7 @@ jobs:
       with:
         images: ghcr.io/${{ github.repository }}
         flavor: |
-          suffix=-${{ matrix.platform }}
+          suffix=-${{ matrix.platform_id }}
         tags: |
           type=pep440,pattern={{raw}},value=${{ needs.tests.outputs.version }}
           type=raw,value=latest,enable=${{
@@ -133,7 +133,7 @@ jobs:
         # time.
         # See https://github.com/docker/build-push-action/issues/286 for more
         # details
-        platforms: ${{ matrix.platform }}
+        platforms: ${{ matrix.platform_id }}
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
@@ -147,16 +147,16 @@ jobs:
         # multi-platform builds, see https://github.com/docker/buildx/discussions/1382
         # for potential hints
         cache-from: |
-          type=registry,ref=ghcr.io/${{ github.repository }}/buildcache:${{ matrix.cache_tag }}
+          type=registry,ref=ghcr.io/${{ github.repository }}/buildcache:${{ matrix.platform_name }}
         cache-to: |
-          type=registry,ref=ghcr.io/${{ github.repository }}/buildcache:${{ matrix.cache_tag }},mode=max
+          type=registry,ref=ghcr.io/${{ github.repository }}/buildcache:${{ matrix.platform_name }},mode=max
 
     - name: Store image information
       uses: GoCodeAlone/github-action-matrix-outputs-write@v1
       id: out
       with:
         matrix-step-name: ${{ github.job }}
-        matrix-key: ${{ matrix.platform }}
+        matrix-key: ${{ matrix.platform_name }}
         outputs: |-
           image: ghcr.io/${{ github.repository }}:${{ steps.meta.outputs.version }}
 
@@ -168,10 +168,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: linux/arm64
-          - platform: linux/amd64
-          - platform: linux/arm/v7
-          - platform: linux/arm/v6
+          - platform_id: linux/arm/v7
+            platform_name: linux-arm-v7
+          - platform_id: linux/arm/v6
+            platform_name: linux-arm-v6
+          - platform_id: linux/arm64
+            platform_name: linux-arm64
+          - platform_id: linux/amd64
+            platform_name: linux-amd64
     steps:
       - name: Read image information from publish job
         uses: GoCodeAlone/github-action-matrix-outputs-read@v1
@@ -182,11 +186,11 @@ jobs:
       - name: Set up QEMU for more platforms supported by Buildx
         uses: docker/setup-qemu-action@v3
         with:
-          platforms: ${{ matrix.platform }}
+          platforms: ${{ matrix.platform_id }}
 
       - name: Test images
         run: >-
           docker run --rm
-          --platform ${{ matrix.platform }}
-          ghcr.io/${{ github.repository }}:${{ fromJson(steps.read.outputs.result).image[matrix.platform] }}
+          --platform ${{ matrix.platform_id }}
+          ghcr.io/${{ github.repository }}:${{ fromJson(steps.read.outputs.result).image[matrix.platform_name] }}
           --help
