@@ -153,6 +153,15 @@ jobs:
         cache-to: |
           type=registry,ref=ghcr.io/${{ github.repository }}/buildcache:${{ matrix.cache_tag }},mode=max
 
+    - name: Store image information
+      uses: cloudposse/github-action-matrix-outputs-write@v1
+      id: out
+      with:
+        matrix-step-name: ${{ github.job }}
+        matrix-key: ${{ matrix.platform }}
+        outputs: |-
+          image: ghcr.io/${{ github.repository }}:${{ steps.meta.outputs.version }}
+
   docker-test:
     name: Test Docker images
     runs-on: ubuntu-latest
@@ -166,6 +175,12 @@ jobs:
           - platform: linux/arm/v7
           - platform: linux/arm/v6
     steps:
+      - name: Read image information from publish job
+        uses: cloudposse/github-action-matrix-outputs-read@v1
+        id: read
+        with:
+          matrix-step-name: docker-publish
+
       - name: Set up QEMU for more platforms supported by Buildx
         uses: docker/setup-qemu-action@v3
         with:
@@ -175,5 +190,5 @@ jobs:
         run: >-
           docker run --rm
           --platform ${{ matrix.platform }}
-          ghcr.io/${{ github.repository }}:${{ fromJSON(needs.docker-publish.outputs)[image_version_${{ matrix.platform }}] }}
+          ghcr.io/${{ github.repository }}:${{ fromJson(steps.read.outputs.result).image[matrix.platform] }}
           --help
