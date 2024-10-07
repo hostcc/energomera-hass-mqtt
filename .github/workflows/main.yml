@@ -235,7 +235,7 @@ jobs:
                   return acc;
               }, '');
 
-              core.setOutput('result', `${tagsArg} ${annotationsArg}`);
+              return `${tagsArg} ${annotationsArg}`;
             } catch (e) {
                 core.setFailed(`Unable to construct arguments: ${e.message}`);
             }
