@@ -104,6 +104,7 @@ jobs:
     outputs:
       version: ${{ steps.meta.outputs.version }}
       labels: ${{ steps.meta.outputs.labels }}
+      annotations: ${{ steps.meta.outputs.annotations }}
       json: ${{ steps.meta.outputs.json }}
     steps:
       - name: Prepare Docker metadata
@@ -168,6 +169,7 @@ jobs:
         # details
         platforms: ${{ matrix.platform_id }}
         labels: ${{ needs.docker-metadata.outputs.labels }}
+        annotations: ${{ needs.docker-metadata.outputs.annotations }}
         # Implicit context points to working copy, not Git respository, so
         # `setuptools_scm` needs to receive the version explicitly
         build-args: |
@@ -220,6 +222,8 @@ jobs:
               }
               const metadata = JSON.parse(jsonMetadata);
 
+              // Only tags are considered for the manifest, as annotations
+              // aren't currently supported there
               if (metadata.tags === undefined) {
                   throw new Error("'tags' element is not defined in 'JSON_METADATA'");
               }
@@ -228,15 +232,7 @@ jobs:
                   return acc;
               }, '');
 
-              if (metadata.annotations === undefined) {
-                  throw new Error("'annotations' element is not defined in 'JSON_METADATA'");
-              }
-              const annotationsArg = (metadata.annotations || []).reduce((acc, item) => {
-                  acc += ` --annotation '${item}'`;
-                  return acc;
-              }, '');
-
-              return `${tagsArg} ${annotationsArg}`;
+              return tagsArg;
             } catch (e) {
                 core.setFailed(`Unable to construct arguments: ${e.message}`);
             }
