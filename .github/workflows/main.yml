@@ -158,8 +158,8 @@ jobs:
         matrix-key: ${{ matrix.platform_name }}
         outputs: |-
           image_version: ${{ steps.meta.outputs.version }}
-          image_annotation: ${{ steps.meta.outputs.annotation }}
-          image_tags: ${{ steps.meta.outputs.tags }}
+          image_annotations: ${{ toJson(steps.meta.outputs.annotations) }}
+          image_tags: ${{ toJson(steps.meta.outputs.tags) }}
           image_digest: ${{ steps.build.outputs.digest }}
 
   docker-manifest:
