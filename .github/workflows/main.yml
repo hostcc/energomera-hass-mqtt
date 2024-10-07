@@ -19,11 +19,18 @@ jobs:
     steps:
       - name: Checkout the code
         uses: actions/checkout@v4
+        with:
+          # Disable shallow clone for `setuptools_scm`, as it needs access to the
+          # history
+          fetch-depth: 0
+
       - name: Set Python up
         uses: actions/setup-python@v5
+
       - name: Install dependencies
         run: >-
           python -m pip install --upgrade setuptools setuptools_scm
+
       - name: Determine package version
         id: package-version
         run: |
@@ -60,18 +67,23 @@ jobs:
           # Disable shallow clone for Sonar scanner, as it needs access to the
           # history
           fetch-depth: 0
+
       - name: Set Python up
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
+
       - name: Install testing tools
         run: >-
           python -m pip install --upgrade \
           setuptools setuptools_scm pip tox virtualenv coverage
+
       - name: Run the tests
         run: tox -e ${{ matrix.toxenv }}
+
       - name: Generage Coverage combined XML report
         run: coverage xml
+
       - name: SonarCloud scanning
         uses: sonarsource/sonarcloud-github-action@master
         env:
@@ -202,7 +214,7 @@ jobs:
           docker buildx imagetools create
           ${{ join(fromJson(needs.docker-metadata.outputs.annotations_json), '--annotation ') }}
           ${{ join(fromJson(needs.docker-metadata.outputs.tags_json), '--tags ') }}
-          ${{ join(fromJson(fromJson(steps.read.outputs.result).image_digest.*.value), ' ') }}
+          ${{ join(fromJson(steps.read.outputs.result).image_digest.*.value, ' ') }}
 
   docker-test:
     name: Test Docker images
