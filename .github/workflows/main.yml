@@ -104,8 +104,7 @@ jobs:
     outputs:
       version: ${{ steps.meta.outputs.version }}
       labels: ${{ steps.meta.outputs.labels }}
-      annotations_json: ${{ toJson(fromJson(steps.meta.outputs.json).annotations) }}
-      tags_json: ${{ toJson(fromJson(steps.meta.outputs.json).tags) }}
+      json: ${{ steps.meta.outputs.json }}
     steps:
       - name: Prepare Docker metadata
         id: meta
@@ -206,14 +205,48 @@ jobs:
         with:
           matrix-step-name: docker-publish
 
+      - uses: actions/github-script@v7
+        id: buildx-imagetools-create-args
+        env:
+          JSON_METADATA: ${{ needs.docker-metadata.outputs.json }}
+        with:
+          result-encoding: string
+          script: |-
+            try {
+              const jsonMetadata = process.env.JSON_METADATA;
+              if (jsonMetadata === undefined) {
+                  throw new Error('JSON_METADATA is not defined');
+              }
+              const metadata = JSON.parse(jsonMetadata);
+
+              if (metadata.tags === undefined) {
+                  throw new Error("'tags' element is not defined in 'JSON_METADATA'");
+              }
+              const tagsArg = (metadata.tags || []).reduce((acc, item) => {
+                  acc += ` --tags ${item}`;
+                  return acc;
+              }, '');
+
+              if (metadata.annotations === undefined) {
+                  throw new Error("'annotations' element is not defined in 'JSON_METADATA'");
+              }
+              const annotationsArg = (metadata.annotations || []).reduce((acc, item) => {
+                  acc += ` --annotations '${item}'`;
+                  return acc;
+              }, '');
+
+              core.setOutput('result', `${tagsArg} ${annotationsArg}`);
+            } catch (e) {
+                core.setFailed(`Unable to construct arguments: ${e.message}`);
+            }
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Create and push Docker manifest
         run: >-
           docker buildx imagetools create
-          --annotation ${{ join(fromJson(needs.docker-metadata.outputs.annotations_json), ' --annotation ') }}
-          --tag ${{ join(fromJson(needs.docker-metadata.outputs.tags_json), ' --tag ') }}
+          ${{ steps.buildx-imagetools-create-args.outputs.result }}
           ${{ join(fromJson(steps.read.outputs.result).image_digest.*.value, ' ') }}
 
   docker-test:
