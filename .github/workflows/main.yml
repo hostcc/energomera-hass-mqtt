@@ -194,5 +194,5 @@ jobs:
         run: >-
           docker run --rm
           --platform ${{ matrix.platform_id }}
-          ghcr.io/${{ github.repository }}:${{ fromJson(steps.read.outputs.result).image_digest[matrix.platform_name] }}
+          ghcr.io/${{ github.repository }}@${{ fromJson(steps.read.outputs.result).image_digest[matrix.platform_name] }}
           --help
