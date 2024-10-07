@@ -213,7 +213,7 @@ jobs:
         run: >-
           docker buildx imagetools create
           --annotation ${{ join(fromJson(needs.docker-metadata.outputs.annotations_json), ' --annotation ') }}
-          --tag${{ join(fromJson(needs.docker-metadata.outputs.tags_json), ' --tag ') }}
+          --tag ${{ join(fromJson(needs.docker-metadata.outputs.tags_json), ' --tag ') }}
           ${{ join(fromJson(steps.read.outputs.result).image_digest.*.value, ' ') }}
 
   docker-test:
