@@ -205,7 +205,8 @@ jobs:
         with:
           matrix-step-name: docker-publish
 
-      - uses: actions/github-script@v7
+      - name: Construct arguments for `docker buildx imagetools create` command
+        uses: actions/github-script@v7
         id: buildx-imagetools-create-args
         env:
           JSON_METADATA: ${{ needs.docker-metadata.outputs.json }}
@@ -223,7 +224,7 @@ jobs:
                   throw new Error("'tags' element is not defined in 'JSON_METADATA'");
               }
               const tagsArg = (metadata.tags || []).reduce((acc, item) => {
-                  acc += ` --tags ${item}`;
+                  acc += ` --tag ${item}`;
                   return acc;
               }, '');
 
@@ -231,7 +232,7 @@ jobs:
                   throw new Error("'annotations' element is not defined in 'JSON_METADATA'");
               }
               const annotationsArg = (metadata.annotations || []).reduce((acc, item) => {
-                  acc += ` --annotations '${item}'`;
+                  acc += ` --annotation '${item}'`;
                   return acc;
               }, '');
 
