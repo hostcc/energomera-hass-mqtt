@@ -11,6 +11,32 @@ on:
       - master
 
 jobs:
+  version:
+    name: Generate package version
+    runs-on: ubuntu-latest
+    outputs:
+      value: ${{ steps.package-version.outputs.value }}
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v4
+        with:
+          # Disable shallow clone for `setuptools_scm`, as it needs access to the
+          # history
+          fetch-depth: 0
+
+      - name: Set Python up
+        uses: actions/setup-python@v5
+
+      - name: Install dependencies
+        run: >-
+          python -m pip install --upgrade setuptools setuptools_scm
+
+      - name: Determine package version
+        id: package-version
+        run: |
+          package_version=`python -m setuptools_scm --format plain`
+          echo "value=$package_version" >> $GITHUB_OUTPUT
+
   tests:
     name: Tests
     strategy:
@@ -33,31 +59,31 @@ jobs:
             python: '3.12'
             toxenv: py
     runs-on: ${{ matrix.os }}
-    outputs:
-      version: ${{ steps.package-version.outputs.VALUE }}
+    needs: [version]
     steps:
       - name: Checkout the code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           # Disable shallow clone for Sonar scanner, as it needs access to the
           # history
           fetch-depth: 0
+
       - name: Set Python up
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
+
       - name: Install testing tools
         run: >-
-          python -m pip install --upgrade setuptools pip tox virtualenv coverage
+          python -m pip install --upgrade \
+          setuptools setuptools_scm pip tox virtualenv coverage
+
       - name: Run the tests
         run: tox -e ${{ matrix.toxenv }}
+
       - name: Generage Coverage combined XML report
         run: coverage xml
-      - name: Determine package version
-        id: package-version
-        run: |
-          package_version=`cat version.txt`
-          echo "VALUE=$package_version" >> $GITHUB_OUTPUT
+
       - name: SonarCloud scanning
         uses: sonarsource/sonarcloud-github-action@master
         env:
@@ -68,73 +94,26 @@ jobs:
           args: >-
             -Dsonar.projectKey=${{ github.repository_owner }}_${{ github.event.repository.name }}
             -Dsonar.organization=${{ github.repository_owner }}
-            -Dsonar.projectVersion=${{ steps.package-version.outputs.VALUE }}
+            -Dsonar.projectVersion=${{ needs.version.outputs.value }}
           # yamllint enable rule:line-length
 
-  pypi-publish:
-    name: Publish to PyPi
+  docker-metadata:
+    name: Generate metadata for container images
     runs-on: ubuntu-latest
-    # PyPi disallows to publish packages with direct dependencies (GitHub
-    # sourced dependency in this case), so disable publishing for now
-    if: false
-    needs: [tests]
+    needs: [version]
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      labels: ${{ steps.meta.outputs.labels }}
+      annotations: ${{ steps.meta.outputs.annotations }}
+      json: ${{ steps.meta.outputs.json }}
     steps:
-      - name: Checkout the code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0  # `setuptools_scm` needs tags
-      - name: Set Python up
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.9
-      - name: Install the PEP517 package builder
-        run: python -m pip install --upgrade build
-      - name: Build the package
-        run: python -m build
-      - name: Publish the package to Test PyPi
-        # Skip publishing to test PyPI if we're performing release, there might
-        # be already the version of the package from the merge to master branch
-        if: github.event_name != 'release'
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.TEST_PYPI_TOKEN }}
-          repository_url: https://test.pypi.org/legacy/
-      - name: Publish the release to PyPi
-        # Publish to production PyPi only happens when a release published out
-        # of the main branch
-        if: >-
-          github.event_name == 'release'
-          && github.event.action == 'published'
-          && (github.event.release.target_commitish == 'main'
-             || github.event.release.target_commitish == 'master')
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_TOKEN }}
-
-  docker-publish:
-    name: Build and publish Docker images
-    runs-on: ubuntu-latest
-    needs: [tests]
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout the code
-        uses: actions/checkout@v3
-
-      - name: Set up QEMU for more platforms supported by Buildx
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Prepare Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=pep440,pattern={{raw}},value=${{ needs.tests.outputs.version }}
+            type=pep440,pattern={{raw}},value=${{ needs.version.outputs.value }}
             type=raw,value=latest,enable=${{
               github.event_name == 'release'
               && github.event.action == 'published'
@@ -144,22 +123,145 @@ jobs:
             type=ref,event=pr
             type=edge
 
+  docker-publish:
+    # The job uses platform as variations, since `buildx` can't properly cache
+    # those if done single shot (multiple platform specified to single command
+    # invocation)
+    name: Build and publish Docker images
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform_id: linux/arm/v7
+            platform_name: linux-arm-v7
+          - platform_id: linux/arm/v6
+            platform_name: linux-arm-v6
+          - platform_id: linux/arm64
+            platform_name: linux-arm64
+          - platform_id: linux/amd64
+            platform_name: linux-amd64
+    runs-on: ubuntu-latest
+    needs: [version, tests, docker-metadata]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+    - name: Checkout the code
+      uses: actions/checkout@v4
+
+    - name: Set up QEMU for more platforms supported by Buildx
+      uses: docker/setup-qemu-action@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build and push images
+      uses: docker/build-push-action@v6
+      id: build
+      with:
+        # No explicit context used, since that makes cache misses most of the
+        # time.
+        # See https://github.com/docker/build-push-action/issues/286 for more
+        # details
+        platforms: ${{ matrix.platform_id }}
+        labels: ${{ needs.docker-metadata.outputs.labels }}
+        annotations: ${{ needs.docker-metadata.outputs.annotations }}
+        # Implicit context points to working copy, not Git respository, so
+        # `setuptools_scm` needs to receive the version explicitly
+        build-args: |
+          VERSION=${{ needs.version.outputs.value }}
+        # Push by digest only, manifest will be added later
+        outputs: >-
+          type=image,name=ghcr.io/${{ github.repository }},push-by-digest=true,name-canonical=true,push=true
+        # Cache the buildx cache between builds using GitHub registry. `gha`
+        # cache has been mentioned to introduce cache misses for
+        # multi-platform builds, see https://github.com/docker/buildx/discussions/1382
+        # for potential hints
+        cache-from: |
+          type=registry,ref=ghcr.io/${{ github.repository }}/buildcache:${{ matrix.platform_name }}
+        cache-to: |
+          type=registry,ref=ghcr.io/${{ github.repository }}/buildcache:${{ matrix.platform_name }},mode=max
+
+    - name: Store image information
+      uses: GoCodeAlone/github-action-matrix-outputs-write@v1
+      id: out
+      with:
+        matrix-step-name: ${{ github.job }}
+        matrix-key: ${{ matrix.platform_name }}
+        outputs: |-
+          image_digest:
+            value: ${{ steps.build.outputs.digest }}
+
+  docker-manifest:
+    # The job uses image for for variations, hence each corresponding manifest
+    # is created separately - multiple tags in single command invocation might
+    # result in GHCR errors (not fully confirmed)
+    name: Create and push Docker manifest
+    runs-on: ubuntu-latest
+    needs: [docker-metadata, docker-publish]
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: ${{ fromJson(needs.docker-metadata.outputs.json).tags }}
+    steps:
+      - name: Read image information from publish job
+        uses: GoCodeAlone/github-action-matrix-outputs-read@v1
+        id: read
+        with:
+          matrix-step-name: docker-publish
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push images
-        uses: docker/build-push-action@v6
+      # The token above should have read/write access
+      # (`Settings` -> `Actions` -> `General` -> `Workflow permissions` -> `Read and write permissions`)
+      - name: Create and push Docker manifest
+        run: >-
+          docker buildx imagetools create
+          --tag ${{ matrix.tag }}
+          ${{ join(fromJson(steps.read.outputs.result).image_digest.*.value, ' ') }}
+
+  docker-test:
+    name: Test Docker images
+    runs-on: ubuntu-latest
+    needs: [docker-metadata, docker-manifest]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform_id: linux/arm/v7
+            platform_name: linux-arm-v7
+          - platform_id: linux/arm/v6
+            platform_name: linux-arm-v6
+          - platform_id: linux/arm64
+            platform_name: linux-arm64
+          - platform_id: linux/amd64
+            platform_name: linux-amd64
+    steps:
+      - name: Set up QEMU for more platforms supported by Buildx
+        uses: docker/setup-qemu-action@v3
         with:
-          context: .
-          platforms: linux/arm/v7,linux/arm/v6,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          annotations: ${{ steps.meta.outputs.annotations }}
-          # Cache the buildx cache between builds using GitHub Actions cache
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          platforms: ${{ matrix.platform_id }}
+
+      - name: Test the image
+        # Running the image with `--help` should be sufficient to ensure all
+        # dependencies are present
+        run: >-
+          docker run --rm
+          --platform ${{ matrix.platform_id }}
+          ghcr.io/${{ github.repository }}:${{ needs.docker-metadata.outputs.version }}
+          --help
