@@ -212,8 +212,8 @@ jobs:
       - name: Create and push Docker manifest
         run: >-
           docker buildx imagetools create
-          ${{ join(fromJson(needs.docker-metadata.outputs.annotations_json), '--annotation ') }}
-          ${{ join(fromJson(needs.docker-metadata.outputs.tags_json), '--tags ') }}
+          --annotation ${{ join(fromJson(needs.docker-metadata.outputs.annotations_json), ' --annotation ') }}
+          --tag${{ join(fromJson(needs.docker-metadata.outputs.tags_json), ' --tag ') }}
           ${{ join(fromJson(steps.read.outputs.result).image_digest.*.value, ' ') }}
 
   docker-test:
