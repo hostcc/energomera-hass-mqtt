@@ -158,8 +158,8 @@ jobs:
         matrix-key: ${{ matrix.platform_name }}
         outputs: |-
           image_version: ${{ steps.meta.outputs.version }}
-          image_annotations: ${{ toJson(steps.meta.outputs.annotations) }}
-          image_tags: ${{ toJson(steps.meta.outputs.tags) }}
+          image_annotations: ${{ steps.meta.outputs.json.annotations }}
+          image_tags: ${{ steps.meta.outputs.json.tags }}
           image_digest: ${{ steps.build.outputs.digest }}
 
   docker-manifest:
@@ -179,8 +179,8 @@ jobs:
       - name: Create and push Docker manifest
         run: >-
           docker buildx imagetools create
-          --annotation ${{ fromJson(steps.read.outputs.result).image_annotation[0] }}
-          ${{ join(fromJson(steps.read.outputs.result).image_tags, '--tags') }}
+          --annotation ${{ fromJson(steps.read.outputs.result).image_annotations[0] }}
+          ${{ join(fromJson(steps.read.outputs.result).image_tags[0], '--tags') }}
           ${{ join(fromJson(steps.read.outputs.result).image_digest, ' ') }}
 
   docker-test:
