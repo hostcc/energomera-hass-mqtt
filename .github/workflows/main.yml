@@ -23,7 +23,7 @@ jobs:
         uses: actions/setup-python@v5
       - name: Install dependencies
         run: >-
-          python -m pip install --upgrade setuptools_scm
+          python -m pip install --upgrade setuptools setuptools_scm
       - name: Determine package version
         id: package-version
         run: |
@@ -180,7 +180,8 @@ jobs:
         matrix-step-name: ${{ github.job }}
         matrix-key: ${{ matrix.platform_name }}
         outputs: |-
-          image_digest: ${{ steps.build.outputs.digest }}
+          image_digest:
+            value: ${{ steps.build.outputs.digest }}
 
   docker-manifest:
     name: Create and push Docker manifest
@@ -201,7 +202,7 @@ jobs:
           docker buildx imagetools create
           ${{ join(fromJson(needs.docker-metadata.outputs.annotations_json), '--annotation ') }}
           ${{ join(fromJson(needs.docker-metadata.outputs.tags_json), '--tags ') }}
-          ${{ join(fromJson(fromJson(steps.read.outputs.result).image_digest.*), ' ') }}
+          ${{ join(fromJson(fromJson(steps.read.outputs.result).image_digest.*.value), ' ') }}
 
   docker-test:
     name: Test Docker images
