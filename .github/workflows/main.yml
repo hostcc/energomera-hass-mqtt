@@ -135,14 +135,14 @@ jobs:
         # See https://github.com/docker/build-push-action/issues/286 for more
         # details
         platforms: ${{ matrix.platform_id }}
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        annotations: ${{ steps.meta.outputs.annotations }}
         # Implicit context points to working copy, not Git respository, so
         # `setuptools_scm` needs to receive the version explicitly
         build-args: |
           VERSION=${{ needs.tests.outputs.version }}
+        # Push by digest only, manifest will be added later
+        outputs: >-
+          type=image,name=ghcr.io/${{ github.repository }},push-by-digest=true,name-canonical=true,push=true
         # Cache the buildx cache between builds using GitHub registry. `gha`
         # cache has been mentioned to introduce cache misses for
         # multi-platform builds, see https://github.com/docker/buildx/discussions/1382
@@ -161,7 +161,6 @@ jobs:
         outputs: |-
           image_version: ${{ steps.meta.outputs.version }}
           image_digest: ${{ steps.build.outputs.digest }}
-          image_id: ${{ steps.build.outputs.imageid }}
 
   docker-test:
     name: Test Docker images
@@ -195,5 +194,5 @@ jobs:
         run: >-
           docker run --rm
           --platform ${{ matrix.platform_id }}
-          ghcr.io/${{ github.repository }}:${{ fromJson(steps.read.outputs.result).image_version[matrix.platform_name] }}
+          ghcr.io/${{ github.repository }}:${{ fromJson(steps.read.outputs.result).image_digest[matrix.platform_name] }}
           --help
