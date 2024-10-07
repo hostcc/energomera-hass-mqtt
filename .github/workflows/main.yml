@@ -124,6 +124,9 @@ jobs:
             type=edge
 
   docker-publish:
+    # The job uses platform as variations, since `buildx` can't properly cache
+    # those if done single shot (multiple platform specified to single command
+    # invocation)
     name: Build and publish Docker images
     strategy:
       fail-fast: false
@@ -197,6 +200,9 @@ jobs:
             value: ${{ steps.build.outputs.digest }}
 
   docker-manifest:
+    # The job uses image for for variations, hence each corresponding manifest
+    # is created separately - multiple tags in single command invocation might
+    # result in GHCR errors (not fully confirmed)
     name: Create and push Docker manifest
     runs-on: ubuntu-latest
     needs: [docker-metadata, docker-publish]
@@ -221,6 +227,8 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # The token above should have read/write access
+      # (`Settings` -> `Actions` -> `General` -> `Workflow permissions` -> `Read and write permissions`)
       - name: Create and push Docker manifest
         run: >-
           docker buildx imagetools create
@@ -244,18 +252,14 @@ jobs:
           - platform_id: linux/amd64
             platform_name: linux-amd64
     steps:
-      - name: Read image information from publish job
-        uses: GoCodeAlone/github-action-matrix-outputs-read@v1
-        id: read
-        with:
-          matrix-step-name: docker-publish
-
       - name: Set up QEMU for more platforms supported by Buildx
         uses: docker/setup-qemu-action@v3
         with:
           platforms: ${{ matrix.platform_id }}
 
-      - name: Test images
+      - name: Test the image
+        # Running the image with `--help` should be sufficient to ensure all
+        # dependencies are present
         run: >-
           docker run --rm
           --platform ${{ matrix.platform_id }}
