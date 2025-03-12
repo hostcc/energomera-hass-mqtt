@@ -44,9 +44,6 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            python: 3.8
-            toxenv: py
-          - os: ubuntu-latest
             python: 3.9
             toxenv: py
           - os: ubuntu-latest
@@ -57,6 +54,9 @@ jobs:
             toxenv: py
           - os: ubuntu-latest
             python: '3.12'
+            toxenv: py
+          - os: ubuntu-latest
+            python: '3.13'
             toxenv: py
     runs-on: ${{ matrix.os }}
     needs: [version]

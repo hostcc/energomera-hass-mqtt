@@ -58,7 +58,8 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
     # Class attribute defining MQTT topic base for HASS discovery
     _mqtt_topic_base = 'sensor'
 
-    def __init__(  # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments,too-many-positional-arguments
+    def __init__(
         self, mqtt_config: ConfigMqttSchema, mqtt_client: MqttClient,
         config_param: ConfigParameterSchema, iec_item: List[IecDataSet],
         model: str, sw_version: str, serial_number: str
