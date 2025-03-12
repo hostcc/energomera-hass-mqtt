@@ -1,4 +1,4 @@
-FROM python:3.12.5-alpine AS deps
+FROM python:3.13.2-alpine AS deps
 
 # Rust and Cargo are required to build `pyndatic-core` on ARM platforms
 RUN apk add -U cargo git rust \
