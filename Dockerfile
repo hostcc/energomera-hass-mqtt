@@ -1,4 +1,6 @@
-FROM python:3.13.2-alpine AS deps
+ARG PYTHON_VERSION=3.31.2-alpine
+
+FROM python:${PYTHON_VERSION} AS deps
 
 # Rust and Cargo are required to build `pyndatic-core` on ARM platforms
 RUN apk add -U cargo git rust \
@@ -11,7 +13,7 @@ COPY requirements.txt .
 # Install dependencies in a separate layer to cache them
 RUN pip install --root /tmp/target/ -r requirements.txt
 
-FROM python:3.12.5-alpine AS build
+FROM python:${PYTHON_VERSION} AS build
 
 RUN pip install build
 
@@ -30,7 +32,7 @@ RUN \
 	python -m build --outdir /tmp/dist/ source/ \
 	&& pip install --no-deps --root /tmp/target/ /tmp/dist/*-${VERSION}*.whl
 
-FROM python:3.12.5-alpine
+FROM python:${PYTHON_VERSION}
 # Ensure all the OS updates are applied to the resulting image
 RUN apk -U upgrade \
 	&& apk cache clean
