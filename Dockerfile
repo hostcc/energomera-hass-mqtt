@@ -3,7 +3,9 @@ ARG PYTHON_VERSION=3.13.3-alpine
 FROM python:${PYTHON_VERSION} AS deps
 
 # Rust and Cargo are required to build `pyndatic-core` on ARM platforms
-RUN apk add -U cargo git rust \
+# Update all installed packages to their latest versions to ensure security and compatibility
+RUN apk -U upgrade \
+    && apk add -U cargo git rust \
 	&& pip install build \
 	&& apk cache clean
 
