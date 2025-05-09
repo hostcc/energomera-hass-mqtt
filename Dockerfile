@@ -1,4 +1,4 @@
-ARG PYTHON_VERSION=3.13.2-alpine
+ARG PYTHON_VERSION=3.13.3-alpine
 
 FROM python:${PYTHON_VERSION} AS deps
 
