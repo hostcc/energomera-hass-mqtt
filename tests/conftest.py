@@ -1101,9 +1101,21 @@ def mock_mqtt() -> Iterator[MockMqttT]:
     Provides necessary MQTT mocks, to be used as context manager.
     '''
     # Mock the calls we interested in
-    with patch.multiple(MqttClient,
-                        publish=DEFAULT, connect=DEFAULT, will_set=DEFAULT,
-                        new_callable=AsyncMock) as mocks:
+    with (
+        # Async methods
+        patch.multiple(
+            MqttClient,
+            publish=DEFAULT, connect=DEFAULT,
+            new_callable=AsyncMock
+        ) as async_mocks,
+        # Regular ones
+        patch.multiple(
+            MqttClient,
+            will_set=DEFAULT, new_callable=Mock
+        ) as mocks
+    ):
+        # Combine mocks into single dict
+        mocks.update(async_mocks)
         yield mocks
 
 
