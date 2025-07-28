@@ -170,7 +170,8 @@ class EnergomeraHassMqtt:
         """
         if len(hello_response) != 1:
             raise EnergomeraMeterError(
-                'Too many values received for meter identification data'
+                'Incorrect number of values received for meter identification'
+                f' data: expected 1, got {len(hello_response)}'
             )
 
         try:
