@@ -277,8 +277,8 @@ class EnergomeraHassMqtt:
 
         :param state: The sensor state
         """
-        # The method might called early, e.g. for an exception interacting with
-        # the meter, so IDs might be unavailable - skip further processing
+        # The method might be called early, e.g. for an exception interacting
+        # with the meter, so IDs might be unavailable - skip further processing
         # since those are needed for MQTT messages towards HomeAssistant
         if not self.is_meter_ids_available:
             _LOGGER.debug(
