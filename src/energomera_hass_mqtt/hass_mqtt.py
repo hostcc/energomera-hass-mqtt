@@ -155,7 +155,7 @@ class EnergomeraHassMqtt:
     @property
     def is_meter_ids_available(self) -> bool:
         """
-        Indicates whether meter IDs (model, version, serial number are
+        Indicates whether meter IDs (model, version, serial number) are
         available.
 
         :return: True if all the IDs are available
