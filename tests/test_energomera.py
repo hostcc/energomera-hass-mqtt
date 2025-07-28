@@ -87,7 +87,7 @@ def test_timeout() -> None:
 
 @pytest.mark.usefixtures('mock_serial', 'mock_config')
 @pytest.mark.parametrize(
-    '',
+    [],
     [
         pytest.param(
             id='no_meter_ids',
@@ -116,7 +116,7 @@ def test_timeout() -> None:
         ),
     ]
 )
-def test_no_meter_ids(mock_mqtt: MockMqttT) -> None:
+def test_invalid_meter_ids(mock_mqtt: MockMqttT) -> None:
     '''
     Tests for invalid meter IDs handling, no MQTT calls should be made.
     '''
