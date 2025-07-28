@@ -235,9 +235,8 @@ class EnergomeraHassMqtt:
             # End the session
             _LOGGER.debug('Closing session with meter')
             self._client.send_break()
-        except TimeoutError as exc:
+        except TimeoutError:
             await self.set_online_sensor(False)
-            raise exc
         else:
             await self.set_online_sensor(True)
             duration = time() - start
