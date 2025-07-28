@@ -25,8 +25,8 @@ from unittest.mock import call, patch
 import logging
 import pytest
 from conftest import (
-    MQTT_PUBLISH_CALLS_COMPLETE, SERIAL_EXCHANGE_COMPLETE, MockMqttT,
-    MockSerialT
+    MQTT_PUBLISH_CALLS_COMPLETE, SERIAL_EXCHANGE_COMPLETE,
+    SERIAL_EXCHANGE_INIT, MockMqttT, MockSerialT
 )
 from energomera_hass_mqtt.main import main
 
@@ -83,3 +83,46 @@ def test_timeout() -> None:
     Tests for timeout handling, no unhandled exceptions should be raised.
     '''
     main()
+
+
+@pytest.mark.usefixtures('mock_serial', 'mock_config')
+@pytest.mark.parametrize(
+    '',
+    [
+        pytest.param(
+            id='no_meter_ids',
+            marks=pytest.mark.serial_exchange(
+                SERIAL_EXCHANGE_INIT + [{
+                    'send_bytes': b'\x02HELLO()\r\n\x03\x5f'
+                }]
+            )
+        ),
+        pytest.param(
+            id='empty_meter_ids',
+            marks=pytest.mark.serial_exchange(
+                SERIAL_EXCHANGE_INIT + [{
+                    'send_bytes': b'\x02HELLO(,,,,)\r\n\x03\x0f'
+                }]
+            )
+        ),
+        pytest.param(
+            id='many_meter_ids',
+            marks=pytest.mark.serial_exchange(
+                SERIAL_EXCHANGE_INIT + [{
+                    'send_bytes':
+                        b'\x02HELLO(,,,,)\r\nHELLO(dummy)\r\n\x03\x17'
+                }]
+            )
+        ),
+    ]
+)
+def test_no_meter_ids(mock_mqtt: MockMqttT) -> None:
+    '''
+    Tests for invalid meter IDs handling, no MQTT calls should be made.
+    '''
+    main()
+
+    # Meter IDs are essential for MQTT messages toward Home Assistant,
+    # so no MQTT calls should be made if they are not provided or invalid.
+    mock_mqtt['connect'].assert_not_called()
+    mock_mqtt['publish'].assert_not_called()

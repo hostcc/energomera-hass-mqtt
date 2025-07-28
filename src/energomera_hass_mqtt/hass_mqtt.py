@@ -169,17 +169,25 @@ class EnergomeraHassMqtt:
         :param hello_response: Response to 'HELLO' command
         """
         if len(hello_response) != 1:
-            raise ValueError(
-                'Failed to retrieve meter identification data'
+            raise EnergomeraMeterError(
+                'Too many values received for meter identification data'
             )
-        [_, self._model, self._sw_version, self._serial_number, _
-         ] = hello_response[0].value.split(',')
+
+        try:
+            [_, self._model, self._sw_version, self._serial_number, _
+             ] = hello_response[0].value.split(',')
+        except ValueError as exc:
+            raise EnergomeraMeterError(
+                'Failed to parse meter identification data:'
+                f" '{hello_response[0].value}'"
+            ) from exc
 
         _LOGGER.debug(
             "Retrieved identification data from meter:"
             " model '%s', SW version '%s', serial number: '%s'",
             self._model, self._sw_version, self._serial_number
         )
+
         if not self.is_meter_ids_available:
             raise EnergomeraMeterError(
                 'Failed to retrieve meter identification data'

@@ -39,7 +39,8 @@ MockMqttT = Dict[str, Mock]
 MockSerialT = Dict[str, Mock]
 
 
-SERIAL_EXCHANGE_BASE = [
+# Simulated initial serial exchange with the meter before identification data
+SERIAL_EXCHANGE_INIT = [
     {
         'receive_bytes': b'/?!\r\n',
         'send_bytes': b'/EKT5CE301v12\r\n',
@@ -52,12 +53,17 @@ SERIAL_EXCHANGE_BASE = [
         'receive_bytes': b'\x01P1\x02(dummy)\x03\x03',
         'send_bytes': b'\x06',
     },
+]
+
+# Simulated serial exchange with the meter including identification data
+SERIAL_EXCHANGE_BASE = SERIAL_EXCHANGE_INIT + [
     {
         'receive_bytes': b'\x01R1\x02HELLO()\x03M',
         'send_bytes': b'\x02HELLO(2,CE301,12,00123456,dummy)\r\n\x03\x01',
     },
 ]
 
+# Simulated serial exchange with meter for complete data set
 SERIAL_EXCHANGE_COMPLETE = SERIAL_EXCHANGE_BASE + [
     {
         'receive_bytes': b'\x01R1\x02ET0PE()\x037',
