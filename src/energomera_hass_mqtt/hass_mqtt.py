@@ -152,6 +152,16 @@ class EnergomeraHassMqtt:
         # so cast it explicitly
         return cast(List[IecDataSet], self._client.read_response().data)
 
+    @property
+    def is_meter_ids_available(self) -> bool:
+        """
+        Indicates whether meter IDs (model, version, serial number) are
+        available.
+
+        :return: True if all the IDs are available
+        """
+        return all([self._model, self._sw_version, self._serial_number])
+
     def set_meter_ids(self, hello_response: List[IecDataSet]) -> None:
         """
         Stores meter's model, serial number and software version.
@@ -159,18 +169,27 @@ class EnergomeraHassMqtt:
         :param hello_response: Response to 'HELLO' command
         """
         if len(hello_response) != 1:
-            raise ValueError(
-                'Failed to retrieve meter identification data'
+            raise EnergomeraMeterError(
+                'Incorrect number of values received for meter identification'
+                f' data: expected 1, got {len(hello_response)}'
             )
-        [_, self._model, self._sw_version, self._serial_number, _
-         ] = hello_response[0].value.split(',')
+
+        try:
+            [_, self._model, self._sw_version, self._serial_number, _
+             ] = hello_response[0].value.split(',')
+        except ValueError as exc:
+            raise EnergomeraMeterError(
+                'Failed to parse meter identification data:'
+                f" '{hello_response[0].value}'"
+            ) from exc
 
         _LOGGER.debug(
             "Retrieved identification data from meter:"
             " model '%s', SW version '%s', serial number: '%s'",
             self._model, self._sw_version, self._serial_number
         )
-        if not all([self._model, self._sw_version, self._serial_number]):
+
+        if not self.is_meter_ids_available:
             raise EnergomeraMeterError(
                 'Failed to retrieve meter identification data'
             )
@@ -225,9 +244,8 @@ class EnergomeraHassMqtt:
             # End the session
             _LOGGER.debug('Closing session with meter')
             self._client.send_break()
-        except TimeoutError as exc:
+        except TimeoutError:
             await self.set_online_sensor(False)
-            raise exc
         else:
             await self.set_online_sensor(True)
             duration = time() - start
@@ -260,12 +278,15 @@ class EnergomeraHassMqtt:
 
         :param state: The sensor state
         """
-        # The variables normally are ensured by `set_meter_ids()`
-        # method, but the types of the variables are still `Optional` hence the
-        # check
-        assert (
-            self._model and self._sw_version and self._serial_number
-        ), 'Meter identification data is missing'
+        # The method might be called early, e.g. for an exception interacting
+        # with the meter, so IDs might be unavailable - skip further processing
+        # since those are needed for MQTT messages towards HomeAssistant
+        if not self.is_meter_ids_available:
+            _LOGGER.debug(
+                'Meter identification data is missing, skipping publish of'
+                ' online sensor'
+            )
+            return
 
         # Add a pseudo-sensor
         param = ConfigParameterSchema(
