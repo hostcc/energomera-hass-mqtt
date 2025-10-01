@@ -198,7 +198,9 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
             ),
             device_class=self._config_param.device_class,
             unique_id=self._hass_unique_id,
-            object_id=self._hass_unique_id,
+            # `object_id` is now deprecated, use `default_entity_id` instead.
+            # See https://github.com/home-assistant/core/pull/151775 for details
+            default_entity_id=self._hass_unique_id,
             unit_of_measurement=self._config_param.unit,
             state_class=self._config_param.state_class,
             state_topic=self._hass_state_topic,
