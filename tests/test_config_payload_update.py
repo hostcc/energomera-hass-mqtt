@@ -98,7 +98,7 @@ def test_config_payload_update(
                     },
                     'device_class': 'energy',
                     'unique_id': 'CE301_00123456_ET0PE',
-                    'object_id': 'CE301_00123456_ET0PE',
+                    'default_entity_id': 'CE301_00123456_ET0PE',
                     'unit_of_measurement': 'kWh',
                     'state_class': 'total_increasing',
                     'state_topic': 'homeassistant/sensor/CE301_00123456'
@@ -125,7 +125,7 @@ def test_config_payload_update(
                     },
                     'device_class': 'energy',
                     'unique_id': 'CE301_00123456_ET0PE',
-                    'object_id': 'CE301_00123456_ET0PE',
+                    'default_entity_id': 'CE301_00123456_ET0PE',
                     'unit_of_measurement': 'kWh',
                     'state_class': 'total_increasing',
                     'state_topic': 'homeassistant/sensor/CE301_00123456'
