@@ -1,9 +1,10 @@
-ARG PYTHON_VERSION=3.13.3-alpine
+ARG PYTHON_VERSION=3.14.0
 
-FROM python:${PYTHON_VERSION} AS deps
+FROM python:${PYTHON_VERSION}-alpine AS deps
 
 # Rust and Cargo are required to build `pyndatic-core` on ARM platforms
-# Update all installed packages to their latest versions to ensure security and compatibility
+# Update all installed packages to their latest versions to ensure security and
+# compatibility
 RUN apk -U upgrade \
     && apk add -U cargo git rust \
 	&& pip install build \
@@ -12,10 +13,13 @@ RUN apk -U upgrade \
 # Limit use of the build context to the requirements file only, to avoid cache
 # invalidation when other files get changed
 COPY requirements.txt .
-# Install dependencies in a separate layer to cache them
-RUN pip install --root /tmp/target/ -r requirements.txt
+# Install dependencies in a separate layer to cache them,
+# `PYO3_USE_ABI3_FORWARD_COMPATIBILITY` is needed for `pydantic-core` since one
+# of its dependencies, `pyo3`, doesn't support Python 3.14 officially yet
+RUN PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 \
+	pip install --root /tmp/target/ -r requirements.txt
 
-FROM python:${PYTHON_VERSION} AS build
+FROM python:${PYTHON_VERSION}-alpine AS build
 
 RUN pip install build
 
@@ -34,7 +38,7 @@ RUN \
 	python -m build --outdir /tmp/dist/ source/ \
 	&& pip install --no-deps --root /tmp/target/ /tmp/dist/*-${VERSION}*.whl
 
-FROM python:${PYTHON_VERSION}
+FROM python:${PYTHON_VERSION}-alpine
 # Ensure all the OS updates are applied to the resulting image
 RUN apk -U upgrade \
 	&& apk cache clean
