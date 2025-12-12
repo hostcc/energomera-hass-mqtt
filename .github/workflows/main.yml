@@ -18,7 +18,7 @@ jobs:
       value: ${{ steps.package-version.outputs.value }}
     steps:
       - name: Checkout the code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           # Disable shallow clone for `setuptools_scm`, as it needs access to the
           # history
@@ -65,7 +65,7 @@ jobs:
     needs: [version]
     steps:
       - name: Checkout the code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           # Disable shallow clone for Sonar scanner, as it needs access to the
           # history
@@ -150,7 +150,7 @@ jobs:
       packages: write
     steps:
     - name: Checkout the code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Set up QEMU for more platforms supported by Buildx
       uses: docker/setup-qemu-action@v3
