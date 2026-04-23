@@ -17,4 +17,4 @@ types-PyYAML==6.0.12.20250915; python_version < '3.10'
 types-PyYAML==6.0.12.20260408; python_version >= '3.10'
 callee==0.3.1
 setuptools>=70.0.0 # not directly required, pinned by Snyk to avoid a vulnerability
-zipp>=3.19.1 # not directly required, pinned by Snyk to avoid a vulnerability
+zipp>=3.23.1 # not directly required, pinned by Snyk to avoid a vulnerability
