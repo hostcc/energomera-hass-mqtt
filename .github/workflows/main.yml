@@ -45,9 +45,6 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            python: 3.9
-            toxenv: py
-          - os: ubuntu-latest
             python: '3.10'
             toxenv: py
           - os: ubuntu-latest
