@@ -1,5 +1,5 @@
 sphinx-rtd-theme
-sphinx-autodoc-typehints==3.12.1
+sphinx-autodoc-typehints==3.13.0
 -r ../requirements.txt
 urllib3>=2.7.0 # not directly required, pinned by Snyk to avoid a vulnerability
 zipp>=4.1.0 # not directly required, pinned by Snyk to avoid a vulnerability
