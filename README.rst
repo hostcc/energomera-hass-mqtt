@@ -129,6 +129,11 @@ Configuration file is in YAML format and supports following elements:
               response_idx:
               # (string) - optional: Category of the HASS sensor entity
               entity_category:
+              # (bool) - optional, default ``false``: Convert the numeric value
+              #  from the meter to its absolute representation. The original
+              #  raw value is exposed as a HASS sensor attribute ``raw_value``.
+              #  Non-numeric values log a warning and are left unchanged
+              abs_value:
 
 
 Interpolation expressions

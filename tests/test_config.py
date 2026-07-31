@@ -92,6 +92,32 @@ def test_valid_config_file() -> None:
     assert isinstance(config.of, ConfigSchema)
     assert config.of == ConfigSchema.model_validate(valid_config)
     assert config.logging_level == logging.ERROR
+    assert config.of.parameters[0].abs_value is False
+
+
+VALID_CONFIG_ABS_VALUE_YAML = '''
+    meter:
+      port: dummy_serial
+      password: dummy_password
+    mqtt:
+      host: a_mqtt_host
+      user: a_mqtt_user
+      password: mqtt_dummy_password
+    parameters:
+        - name: dummy_param
+          address: dummy_addr
+          abs_value: true
+'''
+
+
+@pytest.mark.usefixtures('mock_config')
+@pytest.mark.config_yaml(VALID_CONFIG_ABS_VALUE_YAML)
+def test_config_abs_value_enabled() -> None:
+    '''
+    Tests for abs_value parameter property being loaded from configuration.
+    '''
+    config = EnergomeraConfig(config_file='dummy')
+    assert config.of.parameters[0].abs_value is True
 
 
 VALID_CONFIG_DEFAULT_PARAMETERS_YAML = '''
@@ -127,6 +153,25 @@ def test_valid_config_file_with_default_parameters() -> None:
     assert len(config.of.parameters) == 12
     # Verify the last parameter is the custom one
     assert config.of.parameters[-1].name == 'dummy_param'
+    # Instantaneous measurement defaults enable abs_value; historic/total and
+    # custom parameters keep it disabled
+    abs_value_by_address = {
+        param.address: param.abs_value for param in config.of.parameters[:-1]
+    }
+    assert abs_value_by_address == {
+        'ET0PE': False,
+        'ECMPE': False,
+        'ENMPE': False,
+        'EAMPE': False,
+        'ECDPE': False,
+        'POWPP': True,
+        'POWEP': True,
+        'VOLTA': True,
+        'VNULL': True,
+        'CURRE': True,
+        'FREQU': True,
+    }
+    assert config.of.parameters[-1].abs_value is False
 
 
 @pytest.mark.usefixtures('mock_config')
