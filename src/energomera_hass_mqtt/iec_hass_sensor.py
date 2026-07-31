@@ -217,26 +217,26 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
             and self._hass_unique_id and self._hass_state_topic
         ), 'HASS item properties are missing'
 
-        res = dict(
-            name=self._hass_item_name,
-            device=dict(
-                name=self._serial_number,
-                ids=self._hass_device_id,
-                model=self._model,
-                sw_version=self._sw_version,
-            ),
-            device_class=self._config_param.device_class,
-            unique_id=self._hass_unique_id,
+        res = {
+            'name': self._hass_item_name,
+            'device': {
+                'name': self._serial_number,
+                'ids': self._hass_device_id,
+                'model': self._model,
+                'sw_version': self._sw_version,
+            },
+            'device_class': self._config_param.device_class,
+            'unique_id': self._hass_unique_id,
             # `object_id` is now deprecated, use `default_entity_id` instead.
             # See https://github.com/home-assistant/core/pull/151775 for
             # details
-            default_entity_id=self._hass_unique_id,
-            unit_of_measurement=self._config_param.unit,
-            state_class=self._config_param.state_class,
-            state_topic=self._hass_state_topic,
-            entity_category=self._config_param.entity_category,
-            value_template='{{ value_json.value }}',
-        )
+            'default_entity_id': self._hass_unique_id,
+            'unit_of_measurement': self._config_param.unit,
+            'state_class': self._config_param.state_class,
+            'state_topic': self._hass_state_topic,
+            'entity_category': self._config_param.entity_category,
+            'value_template': '{{ value_json.value }}',
+        }
         if self._config_param.abs_value:
             res['json_attributes_topic'] = self._hass_state_topic
             res['json_attributes_template'] = (
@@ -256,9 +256,7 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
          attribute
         :return: HASS state payload
         """
-        res = dict(
-            value=value
-        )
+        res = {'value': value}
         if raw_value is not None:
             res['raw_value'] = raw_value
         return res
