@@ -96,6 +96,7 @@ class ConfigParameterSchema(BaseModel):
     entity_name: Optional[str] = None
     response_idx: Optional[int] = None
     entity_category: Optional[str] = None
+    abs_value: bool = False
 
 
 class ConfigSchema(BaseModel):

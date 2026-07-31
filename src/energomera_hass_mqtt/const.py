@@ -58,7 +58,7 @@ DEFAULT_CONFIG_PARAMETERS = [
         unit='kWh',
         response_idx=0,
         additional_data=None,
-        entity_name=None
+        entity_name=None,
     ),
     dict(
         address='ECMPE',
@@ -68,7 +68,8 @@ DEFAULT_CONFIG_PARAMETERS = [
         unit='kWh',
         response_idx=0,
         additional_data=None,
-        entity_name=None),
+        entity_name=None,
+    ),
     dict(
         address='ENMPE',
         name='Cumulative energy, previous month',
@@ -77,7 +78,7 @@ DEFAULT_CONFIG_PARAMETERS = [
         unit='kWh',
         response_idx=0,
         additional_data='{{ energomera_prev_month }}',
-        entity_name='ENMPE_PREV_MONTH'
+        entity_name='ENMPE_PREV_MONTH',
     ),
     dict(
         address='EAMPE',
@@ -87,7 +88,7 @@ DEFAULT_CONFIG_PARAMETERS = [
         unit='kWh',
         response_idx=0,
         additional_data='{{ energomera_prev_month }}',
-        entity_name='ECMPE_PREV_MONTH'
+        entity_name='ECMPE_PREV_MONTH',
     ),
     dict(
         address='ECDPE',
@@ -97,7 +98,7 @@ DEFAULT_CONFIG_PARAMETERS = [
         unit='kWh',
         response_idx=0,
         additional_data=None,
-        entity_name=None
+        entity_name=None,
     ),
     dict(
         address='POWPP',
@@ -111,7 +112,8 @@ DEFAULT_CONFIG_PARAMETERS = [
         unit='kW',
         response_idx=None,
         additional_data=None,
-        entity_name=None
+        entity_name=None,
+        abs_value=True,
     ),
     dict(
         address='POWEP',
@@ -121,7 +123,8 @@ DEFAULT_CONFIG_PARAMETERS = [
         unit='kW',
         response_idx=None,
         additional_data=None,
-        entity_name=None
+        entity_name=None,
+        abs_value=True,
     ),
     dict(
         address='VOLTA',
@@ -135,7 +138,8 @@ DEFAULT_CONFIG_PARAMETERS = [
         unit='V',
         response_idx=None,
         additional_data=None,
-        entity_name=None
+        entity_name=None,
+        abs_value=True,
     ),
     dict(
         address='VNULL',
@@ -145,7 +149,8 @@ DEFAULT_CONFIG_PARAMETERS = [
         unit='V',
         response_idx=None,
         additional_data=None,
-        entity_name=None
+        entity_name=None,
+        abs_value=True,
     ),
     dict(
         address='CURRE',
@@ -159,7 +164,8 @@ DEFAULT_CONFIG_PARAMETERS = [
         unit='A',
         response_idx=None,
         additional_data=None,
-        entity_name=None
+        entity_name=None,
+        abs_value=True,
     ),
     dict(
         address='FREQU',
@@ -169,6 +175,7 @@ DEFAULT_CONFIG_PARAMETERS = [
         unit='Hz',
         response_idx=None,
         additional_data=None,
-        entity_name=None
+        entity_name=None,
+        abs_value=True,
     ),
 ]

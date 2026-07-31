@@ -24,16 +24,18 @@ protocol.
 """
 from __future__ import annotations
 from typing import (
-    Dict, TYPE_CHECKING, Optional, Union, Collection, List
+    Dict, TYPE_CHECKING, Optional, Union, Collection, List, Tuple
 )
 import json
 import logging
+import re
 if TYPE_CHECKING:
     from .schema import ConfigMqttSchema, ConfigParameterSchema
     from .mqtt_client import MqttClient
     from iec62056_21.messages import DataSet as IecDataSet
 
 _LOGGER = logging.getLogger(__name__)
+_INTEGER_RE = re.compile(r'[+-]?\d+$')
 
 
 class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
@@ -123,6 +125,33 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
                               self._config_param.response_idx, self.iec_item)
                 self.iec_item = []
 
+    def apply_abs_value(self, value: str) -> Tuple[str, Optional[str]]:
+        """
+        Converts a numeric value to its absolute representation when
+        ``abs_value`` is enabled for the parameter.
+
+        :param value: Raw value received from the meter
+        :return: Tuple of (possibly converted value, original raw value or
+         ``None`` when conversion was not applied)
+        """
+        if not self._config_param.abs_value:
+            return value, None
+
+        try:
+            if _INTEGER_RE.fullmatch(value):
+                converted = str(abs(int(value)))
+            else:
+                converted = str(abs(float(value)))
+        except (TypeError, ValueError):
+            _LOGGER.warning(
+                "Cannot apply abs_value to non-numeric value '%s'"
+                " at address '%s', using original value",
+                value, self._config_param.address
+            )
+            return value, None
+
+        return converted, value
+
     def hass_gen_hass_sensor_props(self, idx: int) -> None:
         """
         Generates various properties for the HASS sensor (device and unique
@@ -188,40 +217,49 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
             and self._hass_unique_id and self._hass_state_topic
         ), 'HASS item properties are missing'
 
-        res = dict(
-            name=self._hass_item_name,
-            device=dict(
-                name=self._serial_number,
-                ids=self._hass_device_id,
-                model=self._model,
-                sw_version=self._sw_version,
-            ),
-            device_class=self._config_param.device_class,
-            unique_id=self._hass_unique_id,
+        res = {
+            'name': self._hass_item_name,
+            'device': {
+                'name': self._serial_number,
+                'ids': self._hass_device_id,
+                'model': self._model,
+                'sw_version': self._sw_version,
+            },
+            'device_class': self._config_param.device_class,
+            'unique_id': self._hass_unique_id,
             # `object_id` is now deprecated, use `default_entity_id` instead.
             # See https://github.com/home-assistant/core/pull/151775 for
             # details
-            default_entity_id=self._hass_unique_id,
-            unit_of_measurement=self._config_param.unit,
-            state_class=self._config_param.state_class,
-            state_topic=self._hass_state_topic,
-            entity_category=self._config_param.entity_category,
-            value_template='{{ value_json.value }}',
-        )
+            'default_entity_id': self._hass_unique_id,
+            'unit_of_measurement': self._config_param.unit,
+            'state_class': self._config_param.state_class,
+            'state_topic': self._hass_state_topic,
+            'entity_category': self._config_param.entity_category,
+            'value_template': '{{ value_json.value }}',
+        }
+        if self._config_param.abs_value:
+            res['json_attributes_topic'] = self._hass_state_topic
+            res['json_attributes_template'] = (
+                "{{ {'raw_value': value_json.raw_value} | tojson }}"
+            )
         # Skip empty values
         return {k: v for k, v in res.items() if v is not None}
 
     def hass_state_payload(  # pylint: disable=no-self-use
-        self, value: str
+        self, value: str, raw_value: Optional[str] = None
     ) -> Dict[str, str]:
         """
         Returns HASS state payload for the item.
 
+        :param value: Sensor state value
+        :param raw_value: Optional original raw value exposed as a HASS
+         attribute
         :return: HASS state payload
         """
-        return dict(
-            value=value
-        )
+        res = {'value': value}
+        if raw_value is not None:
+            res['raw_value'] = raw_value
+        return res
 
     async def process(self, setup_only: bool = False) -> None:
         """
@@ -308,8 +346,9 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
                                   self._hass_config_topic)
 
                 # Sensor state payload
+                value, raw_value = self.apply_abs_value(iec_value.value)
                 state_payload = self.hass_state_payload(
-                    value=iec_value.value
+                    value=value, raw_value=raw_value
                 )
                 json_state_payload = json.dumps(state_payload)
                 _LOGGER.debug("MQTT state payload for HASS auto-discovery:"
