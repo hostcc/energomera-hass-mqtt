@@ -36,6 +36,17 @@ POWEP_REQUEST: Dict[str, bytes] = {
     'receive_bytes': b'\x01R1\x02POWEP()\x03d',
 }
 
+VNULL_REQUEST: Dict[str, bytes] = {
+    'receive_bytes': b'\x01R1\x02VNULL()\x03j',
+}
+
+SERIAL_EXCHANGE_VNULL_ERR12 = SERIAL_EXCHANGE_BASE + [
+    {
+        **VNULL_REQUEST,
+        'send_bytes': b'\x02VNULL(ERR12)\r\n\x03H',
+    },
+]
+
 
 def _config_yaml(abs_value: bool) -> str:
     abs_value_yaml = 'true' if abs_value else 'false'
@@ -46,6 +57,19 @@ def _config_yaml(abs_value: bool) -> str:
           name: Active power abs
           state_class: measurement
           unit: kW
+          abs_value: {abs_value_yaml}
+'''
+
+
+def _config_yaml_vnull(abs_value: bool = True) -> str:
+    abs_value_yaml = 'true' if abs_value else 'false'
+    return CONFIG_YAML_BASE + f'''
+    parameters:
+        - address: VNULL
+          name: Neutral voltage
+          device_class: voltage
+          unit: V
+          state_class: measurement
           abs_value: {abs_value_yaml}
 '''
 
@@ -65,30 +89,35 @@ def _serial_exchange(value: str) -> List[Dict[str, bytes]]:
     ]
 
 
-def _config_payload(*, with_attributes: bool) -> Dict[str, Any]:
+def _config_payload(
+    *,
+    with_attributes: bool,
+    name: str,
+    device_class: str,
+    unique_id: str,
+    unit: str,
+) -> Dict[str, Any]:
     payload = {
-        'name': 'Active power abs',
+        'name': name,
         'device': {
             'name': '00123456',
             'ids': 'CE301_00123456',
             'model': 'CE301',
             'sw_version': '12',
         },
-        'device_class': 'power',
-        'unique_id': 'CE301_00123456_POWEP',
-        'default_entity_id': 'CE301_00123456_POWEP',
-        'unit_of_measurement': 'kW',
+        'device_class': device_class,
+        'unique_id': unique_id,
+        'default_entity_id': unique_id,
+        'unit_of_measurement': unit,
         'state_class': 'measurement',
         'state_topic': (
-            'homeassistant/sensor/CE301_00123456'
-            '/CE301_00123456_POWEP/state'
+            f'homeassistant/sensor/CE301_00123456/{unique_id}/state'
         ),
         'value_template': '{{ value_json.value }}',
     }
     if with_attributes:
         payload['json_attributes_topic'] = (
-            'homeassistant/sensor/CE301_00123456'
-            '/CE301_00123456_POWEP/state'
+            f'homeassistant/sensor/CE301_00123456/{unique_id}/state'
         )
         payload['json_attributes_template'] = (
             "{{ {'raw_value': value_json.raw_value} | tojson }}"
@@ -110,7 +139,13 @@ def test_abs_value_float(mock_mqtt: MockMqttT) -> None:
                 'homeassistant/sensor/CE301_00123456'
                 '/CE301_00123456_POWEP/config'
             ),
-            payload=json.dumps(_config_payload(with_attributes=True)),
+            payload=json.dumps(_config_payload(
+                with_attributes=True,
+                name='Active power abs',
+                device_class='power',
+                unique_id='CE301_00123456_POWEP',
+                unit='kW',
+            )),
             retain=True,
         ),
         call(
@@ -140,7 +175,13 @@ def test_abs_value_integer(mock_mqtt: MockMqttT) -> None:
                 'homeassistant/sensor/CE301_00123456'
                 '/CE301_00123456_POWEP/config'
             ),
-            payload=json.dumps(_config_payload(with_attributes=True)),
+            payload=json.dumps(_config_payload(
+                with_attributes=True,
+                name='Active power abs',
+                device_class='power',
+                unique_id='CE301_00123456_POWEP',
+                unit='kW',
+            )),
             retain=True,
         ),
         call(
@@ -179,7 +220,13 @@ def test_abs_value_non_numeric(
                 'homeassistant/sensor/CE301_00123456'
                 '/CE301_00123456_POWEP/config'
             ),
-            payload=json.dumps(_config_payload(with_attributes=True)),
+            payload=json.dumps(_config_payload(
+                with_attributes=True,
+                name='Active power abs',
+                device_class='power',
+                unique_id='CE301_00123456_POWEP',
+                unit='kW',
+            )),
             retain=True,
         ),
         call(
@@ -187,10 +234,64 @@ def test_abs_value_non_numeric(
                 'homeassistant/sensor/CE301_00123456'
                 '/CE301_00123456_POWEP/state'
             ),
-            payload=json.dumps({'value': 'not-a-number'}),
+            payload=json.dumps({
+                'value': 'not-a-number',
+                'raw_value': 'not-a-number',
+            }),
         ),
     ])
     # Cycle still completes with diagnostic sensors published
+    published_topics = [
+        c.kwargs.get('topic', c.args[0] if c.args else '')
+        for c in mock_mqtt['publish'].call_args_list
+    ]
+    assert any('CYCLE_DURATION' in topic for topic in published_topics)
+    assert any('IS_ONLINE' in topic for topic in published_topics)
+
+
+@pytest.mark.usefixtures('mock_config', 'mock_serial')
+@pytest.mark.config_yaml(_config_yaml_vnull(True))
+@pytest.mark.serial_exchange(SERIAL_EXCHANGE_VNULL_ERR12)
+def test_abs_value_vnull_err12(
+    mock_mqtt: MockMqttT, caplog: pytest.LogCaptureFixture
+) -> None:
+    '''
+    Tests that meter error strings (e.g. ERR12 for VNULL) still publish
+    raw_value so HASS json_attributes_template can render.
+    '''
+    with caplog.at_level(logging.WARNING):
+        main()
+
+    assert any(
+        "Cannot apply abs_value to non-numeric value 'ERR12'" in msg
+        for msg in caplog.messages
+    )
+    mock_mqtt['publish'].assert_has_calls([
+        call(
+            topic=(
+                'homeassistant/sensor/CE301_00123456'
+                '/CE301_00123456_VNULL/config'
+            ),
+            payload=json.dumps(_config_payload(
+                with_attributes=True,
+                name='Neutral voltage',
+                device_class='voltage',
+                unique_id='CE301_00123456_VNULL',
+                unit='V',
+            )),
+            retain=True,
+        ),
+        call(
+            topic=(
+                'homeassistant/sensor/CE301_00123456'
+                '/CE301_00123456_VNULL/state'
+            ),
+            payload=json.dumps({
+                'value': 'ERR12',
+                'raw_value': 'ERR12',
+            }),
+        ),
+    ])
     published_topics = [
         c.kwargs.get('topic', c.args[0] if c.args else '')
         for c in mock_mqtt['publish'].call_args_list
@@ -214,7 +315,13 @@ def test_abs_value_disabled(mock_mqtt: MockMqttT) -> None:
                 'homeassistant/sensor/CE301_00123456'
                 '/CE301_00123456_POWEP/config'
             ),
-            payload=json.dumps(_config_payload(with_attributes=False)),
+            payload=json.dumps(_config_payload(
+                with_attributes=False,
+                name='Active power abs',
+                device_class='power',
+                unique_id='CE301_00123456_POWEP',
+                unit='kW',
+            )),
             retain=True,
         ),
         call(

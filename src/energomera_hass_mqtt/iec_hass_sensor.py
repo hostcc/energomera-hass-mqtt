@@ -131,8 +131,11 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
         ``abs_value`` is enabled for the parameter.
 
         :param value: Raw value received from the meter
-        :return: Tuple of (possibly converted value, original raw value or
-         ``None`` when conversion was not applied)
+        :return: Tuple of (possibly converted value, original raw value).
+         When ``abs_value`` is enabled, ``raw_value`` is always the original
+         meter value (including on conversion failure) so HASS attributes
+         templates that reference ``value_json.raw_value`` remain valid.
+         When ``abs_value`` is disabled, ``raw_value`` is ``None``.
         """
         if not self._config_param.abs_value:
             return value, None
@@ -148,7 +151,7 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
                 " at address '%s', using original value",
                 value, self._config_param.address
             )
-            return value, None
+            return value, value
 
         return converted, value
 
