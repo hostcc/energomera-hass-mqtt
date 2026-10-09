@@ -366,8 +366,7 @@ class IecToHassSensor:  # pylint: disable=too-many-instance-attributes
                 _LOGGER.debug("Sent HASS state payload to MQTT topic '%s'",
                               self._hass_state_topic)
 
-            # pylint: disable=broad-except
-            except Exception as exc:
+            except Exception as exc:  # pylint: disable=broad-except
                 _LOGGER.error('Got following exception while processing'
                               ' entity at address %s (index %s),'
                               " skipping to next.\n"
