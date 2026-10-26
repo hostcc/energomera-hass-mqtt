@@ -2,5 +2,5 @@ iec62056-21 @ git+https://github.com/hostcc/iec62056-21.git@feature/transport-im
 aiomqtt==2.5.1
 pyyaml==6.0.3
 pydantic==2.14.1
-python-dateutil==2.9.0.post0
+python-dateutil==3.0.0
 zipp>=4.1.1 # not directly required, pinned by Snyk to avoid a vulnerability
