@@ -11,4 +11,4 @@ types-python-dateutil==2.9.0.20261021
 types-PyYAML==6.0.12.20260906
 callee==0.3.1
 setuptools>=84.2.1 # not directly required, pinned by Snyk to avoid a vulnerability
-zipp>=4.1.1 # not directly required, pinned by Snyk to avoid a vulnerability
+zipp>=4.1.2 # not directly required, pinned by Snyk to avoid a vulnerability
